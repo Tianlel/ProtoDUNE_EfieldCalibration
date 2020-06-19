@@ -19,16 +19,33 @@
 #include <assert.h>
 #include "common_funcs.h"
 
+/* constant variables */
+#define X_BEGIN 0
+#define X_END 3586
+float Distance = X_END - X_BEGIN;
+
+#define OUTPUT_FILE_NAME(str) ("%s_plots.root", str)
+#define OUTPUT_FILE_TREE "t_err_vec"
+
 using namespace std;
 
-float xbegin = 0;
-float xend = 3586;
-float Distance = xend-xbegin;
-//main section of the code for drift velocity
+float X_BEGIN = 0;
+float X_END = 3586;
+float Distance = X_END - X_BEGIN;
 
+void SetGraphStyle()
+{
+  TStyle *st = new TStyle("st1","my style");
+  st->SetPadGridX(1);
+  st->SetPadGridX(1);
+  st->cd(); 
+  //gStyle->SetOptStat(0);
+}
+
+//main section of the code for drift velocity
 void Efield::Loop()
 {
-  TFile *file = new TFile("3586_plots.root", "recreate");
+  TFile *file = new TFile(OUTPUT_FILE_NAME, "recreate");
   TTree *t = new TTree("t_err_vec","Tree with vectors");
   std::vector<float> e_rms_pos, e_rms_neg, e_se_pos, e_se_neg, e_gaus_pos, e_gaus_neg;
   std::vector<float> e_rms_posx, e_rms_negx, e_se_posx, e_se_negx, e_rms_neg_input_x, e_se_neg_input_x, e_rms_pos_input_x, e_se_pos_input_x;
@@ -51,7 +68,7 @@ void Efield::Loop()
   int no_bins = 27;
   int no_bins_z = 140;
   int n_bins_x = 20;
-  double xbin_size = xend/n_bins_x; 
+  double xbin_size = X_END/n_bins_x; 
   int trk_count = 0;
   int trk_count_neg = 0;
   int z_angle_cnt = 0, z_angle_cnt_neg = 0;
@@ -160,11 +177,11 @@ void Efield::Loop()
   TH1F *efield_med_pos_fit = new TH1F("efield_med_pos_fit", "Electric Field beam left;time_bins;Electric field in kV/cm", no_bins, bin_edges_pos);
   TH1F *efield_med_neg_fit = new TH1F("efield_med_neg_fit", "Electric Field beam right;time_bins;Electric field in kV/cm", no_bins, bin_edges_neg);
 
-  TH1F *efield_med_pos_fitx = new TH1F("xefield_med_pos_fit", "Electric Field beam left;x (mm);Electric field in kV/cm", n_bins_x,0, xend);
-  TH1F *efield_med_neg_fitx = new TH1F("xefield_med_neg_fit", "Electric Field beam right;x (mm);Electric field in kV/cm", n_bins_x, 0,xend);
+  TH1F *efield_med_pos_fitx = new TH1F("xefield_med_pos_fit", "Electric Field beam left;x (mm);Electric field in kV/cm", n_bins_x,0, X_END);
+  TH1F *efield_med_neg_fitx = new TH1F("xefield_med_neg_fit", "Electric Field beam right;x (mm);Electric field in kV/cm", n_bins_x, 0,X_END);
 
-  TH1F *T_vs_xh = new TH1F("T_vs_x", "beam left;x (mm); time_bins", n_bins_x, 0, xend);
-  TH1F *T_vs_x_negh = new TH1F("T_vs_x_neg", "beam right;x (mm); time_bins", n_bins_x, 0, xend);
+  TH1F *T_vs_xh = new TH1F("T_vs_x", "beam left;x (mm); time_bins", n_bins_x, 0, X_END);
+  TH1F *T_vs_x_negh = new TH1F("T_vs_x_neg", "beam right;x (mm); time_bins", n_bins_x, 0, X_END);
   TH1D *efield_fit_trunc_mean = new TH1D("efield_fit_trunc_mean","Electric Field beam left (truncated mean);time_bins;Electric field in kV/cm", no_bins, bin_edges_pos);
   TH1D *efield_fit_trunc_mean_neg = new TH1D("efield_fit_trunc_mean_neg","Electric Field beam right (truncated mean);time_bins;Electric field in kV/cm", no_bins, bin_edges_neg);
   TH1D *x_trunc_mean = new TH1D("x_trunc_mean","measured x vs deltaT beam left (truncated mean);time_bins;x (mm)", no_bins, bin_edges_pos);
@@ -181,8 +198,8 @@ void Efield::Loop()
   TH1F *efieldx_pos_plot=new TH1F("efieldx_pos_plot","LArSoft input Electric field beam left;time in ticks;Electric Field",no_bins,bin_edges_pos);
   TH1F *efieldx_neg_plot=new TH1F("efieldx_neg_plot","LArSoft input Electric field beam right;time in ticks;Electric Field",no_bins,bin_edges_neg);
 
-  TH1F *efieldx_pos_plotx=new TH1F("efieldx_pos_plotx","LArSoft input Electric field beam left;x (mm);Electric Field",n_bins_x,0,xend);
-  TH1F *efieldx_neg_plotx=new TH1F("efieldx_neg_plotx","LArSoft input Electric field beam right;x (mm);Electric Field",n_bins_x,0,xend);
+  TH1F *efieldx_pos_plotx=new TH1F("efieldx_pos_plotx","LArSoft input Electric field beam left;x (mm);Electric Field",n_bins_x,0,X_END);
+  TH1F *efieldx_neg_plotx=new TH1F("efieldx_neg_plotx","LArSoft input Electric field beam right;x (mm);Electric Field",n_bins_x,0,X_END);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
  
  
@@ -333,7 +350,7 @@ void Efield::Loop()
             float time = hitpeakT_buffer[int1];
             float z = hitz_buffer[int1];
             float y = hity_buffer[int1]; //new y
-            float x = (abs(z1 - z) / abs(z1 - z0)) * Distance + xbegin;
+            float x = (abs(z1 - z) / abs(z1 - z0)) * Distance + X_BEGIN;
           
  
             if(num_hist<10){
@@ -494,7 +511,7 @@ void Efield::Loop()
             float time_neg = hitpeakT_buffer_neg[int2];
             float z_neg = hitz_buffer_neg[int2];
             float y_neg = hity_buffer_neg[int2]; //new
-	    float x_neg = (abs(z1_neg - z_neg) / abs(z1_neg - z0_neg)) * Distance + xbegin;
+	    float x_neg = (abs(z1_neg - z_neg) / abs(z1_neg - z0_neg)) * Distance + X_BEGIN;
     
             // Fill histogram
             if (num_hist_neg < 10)

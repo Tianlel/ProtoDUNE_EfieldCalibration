@@ -1,5 +1,5 @@
-#ifndef _HELPERS_H
-#define _HELPERS_H
+#ifndef _COMMON_FUNCS_H
+#define _COMMON_FUNCS_H
 
 /* common helper functions for Efield Calibration */
 
@@ -450,4 +450,4 @@ int x_order_de(vector<float> x)
     return 0;
 }
 
-#endif
+#endif /* _COMMON_FUNCS_H */
