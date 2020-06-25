@@ -69,6 +69,9 @@ Long64_t select_nentries = 0;
 SetGrids(0);
 RmOptStat(0);
 
+/* counters */
+int selected_trk_count = 0, selected_trk_count_neg = 0;
+
 
 /* cut selection */
 
@@ -96,10 +99,6 @@ struct Hit {
         tpc( tpcIn ), wire( wireIn ) {}
 };
  
-struct Track {
-    vector<Hit> hits;
-}   
-
 /********** helper functions **********/
 
 TSpline3 *sp = create_ve_sp(Temp); // ??? converting drift velocity to Efield
@@ -129,6 +128,20 @@ void SetVariableBins (float varbins[], int nbins, float side_bin_size, float xma
         varbins[i+2] = varbins[i+1] + middle_bin_size;
     }
     return;
+}
+
+// ?????????? need to be tested 
+/* returns 1 if the track lies in the specified cut volume */
+int inCutVolume (vector<Hit> hits, int miny, int maxy, int minz, int maxz)
+{
+    int checkz = 0, checky = 0, ret = 0;
+    int size = hits.size();
+    float z0 = hits[0].z, z1 = hits[siz-1].z;
+    float y0 = hits[0].y, y1 = hits[siz-1].y;
+    if (z0 > minz && z0 < maxz && z1 > minz && z1 < maxz) checkz = 1;
+    if (y0 > miny && y0 < maxy && y1 > miny && y1 < maxy) checky = 1;
+    ret = checkz * checky;
+    return ret;
 }
 
 /******************* helper functions end **********************/
@@ -295,3 +308,30 @@ void Efield::Loop()
             }
             sort_hits_by_T(hits);
         }
+        
+        // fill dT histogram after volume cut
+        int incutvol = inCutVolume(hits, miny, maxy, minz, maxz);
+        if incutvol
+                hist_dT_after_Tcut_volcut->Fill(max - min);
+
+        // auxilliary cuts ???????? to be added
+
+        if incutvol
+        {
+            selected_trk_count++;
+
+            float z0 = hits[0].z, z1 = hits[siz-1].z;
+            float y0 = hits[0].y, y1 = hits[siz-1].y;
+
+            // hits loop
+            for (int hit_itr = 0; hit_itr < siz; hit_itr++)
+            {
+                float T = hits[hit_itr].peakT;
+                float y = hits[hit_itr].y;
+                float x = x_begin + Distance * (abs(z1 - z) / abs(z1 - z0));
+
+
+            }
+            
+
+        
