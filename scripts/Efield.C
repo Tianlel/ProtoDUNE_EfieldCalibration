@@ -1,6 +1,7 @@
-#define Efield_cxx
+#define Efibeginx
 #include "Efield.h"
 #include <iostream>
+#include <vector>
 #include <TH1.h>
 #include <TH2.h>
 #include <TH3.h>
@@ -26,7 +27,7 @@ float xbegin = 0;
 float xend = 3586;
 double Temp = 87.67; // K
 
-float distance = xend - xbegin; 
+float distanceX = xend - xbegin; 
 
 /* hit peak time cut (select out cathode-anode crossers) */
 float Tmin_pos = 4565;
@@ -45,12 +46,12 @@ int trksize_min = 45;
 
 /* histogram parameters */
 int nbinsT = 27;
-double sizebinsizeT = 20;
+double sidebinsizeT = 20;
 
 int nbinsX = 20;
 
-float Tbinsize_pos = Tmax_pos / nbinsT;
-float Tbinsize_neg = Tmax_neg / nbinsT; 
+float Tbinsize_pos = (Tmax_pos-2*sidebinsizeT) / (nbinsT-2);
+float Tbinsize_neg = (Tmax_neg-2*sidebinsizeT) / (nbinsT-2); 
 float Xbinsize = xend / nbinsX;
 
 int dT_hist_nbins = 5000;
@@ -66,8 +67,8 @@ string output_tree_name = "tree_name";
 Long64_t select_nentries = 0;
 
 /* style selection */
-SetGrids(0);
-RmOptStat(0);
+//SetGrids(0); to be added ??????
+//RmOptStat(0);
 
 /* counters */
 int selected_trk_count = 0, selected_trk_count_neg = 0;
@@ -80,9 +81,11 @@ int trk_rm_dupzHits = 1; // if a trk has two hits with the same z, remove both o
 
 /******* to be added *********/
 
+/* linear fit parameters */
+int fit_hitnum_per_bin_min = 3; 
 /******************* constant variables end **********************/
 
-/********* struct declaration *********/
+/********* struct definition *********/
 struct Hit {
     float peakT;
     float y;
@@ -136,12 +139,29 @@ int inCutVolume (vector<Hit> hits, int miny, int maxy, int minz, int maxz)
 {
     int checkz = 0, checky = 0, ret = 0;
     int size = hits.size();
-    float z0 = hits[0].z, z1 = hits[siz-1].z;
-    float y0 = hits[0].y, y1 = hits[siz-1].y;
+    float z0 = hits[0].z, z1 = hits[size-1].z;
+    float y0 = hits[0].y, y1 = hits[size-1].y;
     if (z0 > minz && z0 < maxz && z1 > minz && z1 < maxz) checkz = 1;
     if (y0 > miny && y0 < maxy && y1 > miny && y1 < maxy) checky = 1;
     ret = checkz * checky;
     return ret;
+}
+
+float get_fit_velocity(vector<Hit> hits)
+{
+    int hits_num = hits.size();
+    // write T & x into vectors
+    vector<float> hitT, hitX;
+    for (int i=0; i<hits_num; i++)
+    {
+        hitT.push_back(hits[i].peakT);
+        hitX.push_back(hits[i].x_calculated);
+    }
+    TGraph *vfit = new TGraph(hits_num, &hitT[0], &hitX[0]);
+    TF1 *f = new TF1("linearfit", "pol1", 0, 4500); //linear fit
+    vfit->Fit("linearfit","Q");
+    float v = -2 * (f->GetParameter(1));
+    return v;
 }
 
 /******************* helper functions end **********************/
@@ -158,14 +178,17 @@ void Efield::Loop()
     vector<Int_t> hittpc_buffer, hitwire_buffer;
     vector<Float_t> hitpeakT_buffer_neg, hity_buffer_neg, hitz_buffer_neg;
     vector<Int_t> hittpc_buffer_neg, hitwire_buffer_neg;
+    vector<float> z_record, z_record_neg;
   
     vector<Float_t> trkhitT[nbinsT], trkhitX[nbinsT], trkhitT_neg[nbinsT], trkhitX_neg[nbinsT];
     vector<Float_t> trkhitTx[nbinsX], trkhitXx[nbinsX], trkhitTx_neg[nbinsX], trkhitXx_neg[nbinsX];
 
-    vector<vector<double>> drift_velocity_fit, drift_velocity_fit_neg;
-    drift_velocity_fit.resize(nbinsT); drift_velocity_fit_neg.resize(nbinsT);
-    vector<vector<double>> drift_velocity_fitx, drift_velocity_fit_negx;
-    drift_velocity_fitx.resize(nbinsX); drift_velocity_fit_negx.resize(nbinsX);  
+    vector<Float_t> model_Efield_T[nbinsT], model_Efield_X[nbinsX];
+
+    vector<vector<double>> drift_velocityT, drift_velocityT_neg;
+    drift_velocityT.resize(nbinsT); drift_velocityT_neg.resize(nbinsT);
+    vector<vector<double>> drift_velocityX, drift_velocityX_neg;
+    drift_velocityX.resize(nbinsX); drift_velocityX_neg.resize(nbinsX);  
 
     /********* vector declaration end *********/
  
@@ -174,12 +197,12 @@ void Efield::Loop()
     TH1F *hist_dT_after_Tcut_volcut_neg = new TH1F("hist_dT_after_Tcut_volcut_neg", "peakT_max - peakT_min -- beam right;ticks;number of trks", dT_hist_nbins, dT_hist_xmin, dT_hist_xmax);
     
     /* drift velociy histograms */
-    float varbins[nbinsT+1], varbins_neg[nbinst+1];
+    float varbins[nbinsT+1], varbins_neg[nbinsT+1];
     SetVariableBins(varbins, nbinsT, sidebinsizeT, Tmax_pos);
     SetVariableBins(varbins_neg, nbinsT, sidebinsizeT, Tmax_neg);
 
     TH1F *hist_driftvel_med_fit = new TH1F("hist_driftvel_med_fit", "Median drift velocity beam left (fit per trk);T (ticks);drift velocity (mm/µs)", nbinsT, varbins); // median drift velocity from fitting x vs T. 
-    TH1F *hist_driftvel_med_fit_neg = new TH1F("hist_driftvel_med_fit_neg", "Median drift velocity for beam right (fit per trk);T (ticks);drift velocity (mm/µs)", mbinsT, varbins_neg);
+    TH1F *hist_driftvel_med_fit_neg = new TH1F("hist_driftvel_med_fit_neg", "Median drift velocity for beam right (fit per trk);T (ticks);drift velocity (mm/µs)", nbinsT, varbins_neg);
     
     /* Efield histograms */
     TH1F *hist_efield_med_fit_T = new TH1F("hist_efield_med_fit_T", "Median Electric Field beam left;T (ticks);Electric field (kV/cm)", nbinsT, varbins); // plotted against T
@@ -227,7 +250,6 @@ void Efield::Loop()
             if (!hit_peakT2->at(i).size()) continue;
 
             /****** clear vectors for each trk ******/
-            hist_driftvel_med_fit.clear(); hist_driftvel_med_fit_neg.clear();
             hitpeakT_buffer.clear(); hitpeakT_buffer_neg.clear();  
             hittpc_buffer.clear(); hittpc_buffer_neg.clear();  
             hitwire_buffer.clear(); hitwire_buffer_neg.clear();  
@@ -240,8 +262,8 @@ void Efield::Loop()
             }
             for (int k = 0; k < nbinsX; k++)
             {
-                    trkhitTx[k].clear(); trkhitT_negx[k].clear();
-                    trkhitXx[k].clear(); trkhitX_negx[k].clear();
+                    trkhitTx[k].clear(); trkhitTx_neg[k].clear();
+                    trkhitXx[k].clear(); trkhitXx_neg[k].clear();
             }              
 
             /****** loop through all hits of this current trk ******/
@@ -252,15 +274,15 @@ void Efield::Loop()
                     {
                         /**** remove hits with coinciding z ****/
                         int remove_hit = 0;
-                        if trk_rm_dupzHits 
+                        if (trk_rm_dupzHits) 
                         {
                             vector<float>::iterator it;
-///////////////////////////// ??? need to define z_vals etc. //////////////////
-                            it = find(z_vals.begin(), z_vals.end(), trkhitz_wire2->at(i)[j]);
-                            if (it != z_vals.end()) remove_hit = 1
+///////////////////////////// ??? need to define z_record etc. //////////////////
+                            it = find(z_record.begin(), z_record.end(), trkhitz_wire2->at(i)[j]);
+                            if (it != z_record.end()) remove_hit = 1;
                         } 
                         if (j==0 || remove_hit==0){
-                            z_vals.push_back(trkhitz_wire2->at(i)[j]);
+                            z_record.push_back(trkhitz_wire2->at(i)[j]);
                             hitpeakT_buffer.push_back(hit_peakT2->at(i)[j]);
                             hittpc_buffer.push_back(hit_tpc2->at(i)[j]);
                             hitwire_buffer.push_back(hit_wire2->at(i)[j]);
@@ -274,15 +296,15 @@ void Efield::Loop()
                     {
                         /**** remove hits with coinciding z ****/
                         int remove_hit = 0;
-                        if trk_rm_dupzHits 
+                        if (trk_rm_dupzHits==1)
                         {   
                             vector<float>::iterator it;
-                            it = find(z_vals_neg.begin(), z_vals_neg.end(), trkhitz_wire2->at(i)[j]);
-                            if (it != z_vals_neg.end()) remove_hit = 1
+                            it = find(z_record_neg.begin(), z_record_neg.end(), trkhitz_wire2->at(i)[j]);
+                            if (it != z_record_neg.end()) remove_hit = 1;
                         }   
                         if (j==0 || remove_hit==0)
                         {
-                            z_vals_neg.push_back(trkhitz_wire2->at(i)[j]);
+                            z_record_neg.push_back(trkhitz_wire2->at(i)[j]);
                             hitpeakT_buffer_neg.push_back(hit_peakT2->at(i)[j]);
                             hittpc_buffer_neg.push_back(hit_tpc2->at(i)[j]);
                             hitwire_buffer_neg.push_back(hit_wire2->at(i)[j]);
@@ -296,42 +318,98 @@ void Efield::Loop()
         } // end of trk loop #i
 
         size_t trksize = hitpeakT_buffer.size(); // beam left
-        if (siz > trksize_min)
+        if (trksize > trksize_min)
         {
             vector<Hit> hits;
-            hits.reserve( siz ); 
+            hits.reserve(trksize); 
             
-            for (int i=0; i<siz; i++)
+            for (int i=0; i<trksize; i++)
             {
                 hits.push_back( Hit( hitpeakT_buffer[i], hity_buffer[i], hitz_buffer[i],
                                      9999., hittpc_buffer[i], hitwire_buffer[i] ) );
             }
             sort_hits_by_T(hits);
-        }
-        
-        // fill dT histogram after volume cut
-        int incutvol = inCutVolume(hits, miny, maxy, minz, maxz);
-        if incutvol
-                hist_dT_after_Tcut_volcut->Fill(max - min);
 
-        // auxilliary cuts ???????? to be added
+            float Tmin = hits[0].peakT;
+            float Tmax = hits[trksize-1].peakT;
+            if (Tmax < Tmin) exit(0);
 
-        if incutvol
-        {
-            selected_trk_count++;
+            // fill dT histogram after volume cut
+            int incutvol = inCutVolume(hits, miny, maxy, minz, maxz);
+            if (incutvol==1)
+                    hist_dT_after_Tcut_volcut->Fill(Tmax - Tmin);
 
-            float z0 = hits[0].z, z1 = hits[siz-1].z;
-            float y0 = hits[0].y, y1 = hits[siz-1].y;
+            // auxilliary cuts ???????? to be added
 
-            // hits loop
-            for (int hit_itr = 0; hit_itr < siz; hit_itr++)
+            if (incutvol==1)
             {
-                float T = hits[hit_itr].peakT;
-                float y = hits[hit_itr].y;
-                float x = x_begin + Distance * (abs(z1 - z) / abs(z1 - z0));
+                selected_trk_count++;
+
+                float z0 = hits[0].z, z1 = hits[trksize-1].z;
+                float y0 = hits[0].y, y1 = hits[trksize-1].y;
+
+                vector<Hit> hits_per_Tbin[nbinsT], hits_per_Xbin[nbinsX];
+                // hits loop
+                for (int hit_itr = 0; hit_itr < trksize; hit_itr++)
+                {
+                    float T = hits[hit_itr].peakT;
+                    float y = hits[hit_itr].y;
+                    float z = hits[hit_itr].z;
+                    float x = xbegin + distanceX * (abs(z1 - z) / abs(z1 - z0)); // mm
+                    float x_cm = x/10; 
+
+                    float hitdeltaT = T - Tmin;
+                    // update hit information
+                    hits[hit_itr].peakT = hitdeltaT;
+                    hits[hit_itr].x_calculated = x; 
+
+                    int Tbin_num;
+                    if (hitdeltaT < 0) continue;
+                    else if (hitdeltaT > Tmax - Tmin) continue;
+                    else if (hitdeltaT < sidebinsizeT) Tbin_num = 0; 
+                    else if (hitdeltaT > Tmax - sidebinsizeT) Tbin_num = nbinsT - 1;
+                    else Tbin_num = 1 + (int)(hitdeltaT - sidebinsizeT)/Tbinsize_pos;
+                    hits_per_Tbin[Tbin_num].push_back(hits[hit_itr]);
+
+                    model_Efield_T[Tbin_num].push_back(Ef_ex(x_cm,y,z)); // need to double check?????? 
+
+                    int Xbin_num = x/Xbinsize;
+                    if (Xbin_num >= nbinsX) continue;
+                    hits_per_Xbin[Xbin_num].push_back(hits[hit_itr]);
+
+                    model_Efield_X[Xbin_num].push_back(Ef_ex(x_cm,y,z));
+
+                } // end of hits loop
+
+                // loop through time bins to get local velocity (cm/s) from linear fit
+                for (int Tbin_itr = 0; Tbin_itr < nbinsT; Tbin_itr++)
+                {
+                    if (hits_per_Tbin[Tbin_itr].size() < fit_hitnum_per_bin_min) continue;
+                    sort_hits_by_T(hits_per_Tbin[Tbin_itr]); 
+
+                    float v = get_fit_velocity(hits_per_Tbin[Tbin_itr]);
+                    drift_velocityT[Tbin_itr].push_back(v);  
+                } // end of time bin loop
+
+                // loop through X bins to get local velocity (cm/s) from linear fit
+                for (int Xbin_itr = 0; Xbin_itr < nbinsX; Xbin_itr++)
+                {
+                    if (hits_per_Xbin[Xbin_itr].size() < fit_hitnum_per_bin_min) continue;
+                    sort_hits_by_T(hits_per_Xbin[Xbin_itr]);
+
+                    float v = get_fit_velocity(hits_per_Xbin[Xbin_itr]);
+                    drift_velocityX[Xbin_itr].push_back(v);
+                } // end of X bin loop
+            } // end of track selection
+        } // end of track size cut
+    } // end of track loop
 
 
-            }
+
+    file->Write();
+    file->Close();
+} // end of track loop
+
             
 
-        
+
