@@ -255,6 +255,8 @@ void Efield::Loop()
             hitwire_buffer.clear(); hitwire_buffer_neg.clear();  
             hitz_buffer.clear(); hitz_buffer_neg.clear();
             hity_buffer.clear(); hity_buffer_neg.clear();
+            drift_velocityT.clear(); drift_velocityT_neg.clear();
+            drift_velocityX.clear(); drift_velocityX_neg.clear();
             for (int k = 0; k < nbinsT; k++)
             { 
                     trkhitT[k].clear(); trkhitT_neg[k].clear();
@@ -402,6 +404,93 @@ void Efield::Loop()
                 } // end of X bin loop
             } // end of track selection
         } // end of track size cut
+    
+        trksize = hitpeakT_buffer_neg.size(); // beam right
+        if (trksize > trksize_min)
+        {
+            vector<Hit> hits;
+            hits.reserve(trksize); 
+            
+            for (int i=0; i<trksize; i++)
+            {
+                hits.push_back( Hit( hitpeakT_buffer_neg[i], hity_buffer_neg[i], hitz_buffer_neg[i],
+                                     9999., hittpc_buffer_neg[i], hitwire_buffer_neg[i] ) );
+            }
+            sort_hits_by_T(hits);
+
+            float Tmin = hits[0].peakT;
+            float Tmax = hits[trksize-1].peakT;
+            if (Tmax < Tmin) exit(0);
+
+            // fill dT histogram after volume cut
+            int incutvol = inCutVolume(hits, miny, maxy, minz, maxz);
+            if (incutvol==1)
+                    hist_dT_after_Tcut_volcut->Fill(Tmax - Tmin);
+
+            // auxilliary cuts ???????? to be added
+
+            if (incutvol==1)
+            {
+                selected_trk_count_neg++;
+
+                float z0 = hits[0].z, z1 = hits[trksize-1].z;
+                float y0 = hits[0].y, y1 = hits[trksize-1].y;
+
+                vector<Hit> hits_per_Tbin[nbinsT], hits_per_Xbin[nbinsX];
+                // hits loop
+                for (int hit_itr = 0; hit_itr < trksize; hit_itr++)
+                {
+                    float T = hits[hit_itr].peakT;
+                    float y = hits[hit_itr].y;
+                    float z = hits[hit_itr].z;
+                    float x = xbegin + distanceX * (abs(z1 - z) / abs(z1 - z0)); // mm
+                    float x_cm = x/10; 
+
+                    float hitdeltaT = T - Tmin;
+                    // update hit information
+                    hits[hit_itr].peakT = hitdeltaT;
+                    hits[hit_itr].x_calculated = x; 
+
+                    int Tbin_num;
+                    if (hitdeltaT < 0) continue;
+                    else if (hitdeltaT > Tmax - Tmin) continue;
+                    else if (hitdeltaT < sidebinsizeT) Tbin_num = 0; 
+                    else if (hitdeltaT > Tmax - sidebinsizeT) Tbin_num = nbinsT - 1;
+                    else Tbin_num = 1 + (int)(hitdeltaT - sidebinsizeT)/Tbinsize_pos;
+                    hits_per_Tbin[Tbin_num].push_back(hits[hit_itr]);
+
+                    model_Efield_T[Tbin_num].push_back(Ef_ex(x_cm,y,z)); // need to double check?????? 
+
+                    int Xbin_num = x/Xbinsize;
+                    if (Xbin_num >= nbinsX) continue;
+                    hits_per_Xbin[Xbin_num].push_back(hits[hit_itr]);
+
+                    model_Efield_X[Xbin_num].push_back(Ef_ex(x_cm,y,z));
+
+                } // end of hits loop
+
+                // loop through time bins to get local velocity (cm/s) from linear fit
+                for (int Tbin_itr = 0; Tbin_itr < nbinsT; Tbin_itr++)
+                {
+                    if (hits_per_Tbin[Tbin_itr].size() < fit_hitnum_per_bin_min) continue;
+                    sort_hits_by_T(hits_per_Tbin[Tbin_itr]); 
+
+                    float v = get_fit_velocity(hits_per_Tbin[Tbin_itr]);
+                    drift_velocityT_neg[Tbin_itr].push_back(v);  
+                } // end of time bin loop
+
+                // loop through X bins to get local velocity (cm/s) from linear fit
+                for (int Xbin_itr = 0; Xbin_itr < nbinsX; Xbin_itr++)
+                {
+                    if (hits_per_Xbin[Xbin_itr].size() < fit_hitnum_per_bin_min) continue;
+                    sort_hits_by_T(hits_per_Xbin[Xbin_itr]);
+
+                    float v = get_fit_velocity(hits_per_Xbin[Xbin_itr]);
+                    drift_velocityX_neg[Xbin_itr].push_back(v);
+                } // end of X bin loop
+            } // end of track selection
+        } // end of track size cut
+
     } // end of track loop
 
 
