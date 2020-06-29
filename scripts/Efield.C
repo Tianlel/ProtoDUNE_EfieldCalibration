@@ -83,6 +83,10 @@ int trk_rm_dupzHits = 1; // if a trk has two hits with the same z, remove both o
 
 /* linear fit parameters */
 int fit_hitnum_per_bin_min = 3; 
+
+/* tpc number (LArSoft numbering) */ 
+int tpc_left_front = 2, tpc_left_mid = 6, tpc_left_back = 10;
+int tpc_right_front = 1, tpc_right_mid = 5, tpc_right_back = 9;
 /******************* constant variables end **********************/
 
 /********* struct definition *********/
@@ -164,6 +168,49 @@ float get_fit_velocity(vector<Hit> hits)
     return v;
 }
 
+// need to be tested
+/* given the fitted velocities for each bin, 
+ *  * return the median velocities and standard error*/
+void get_Vmedian_per_bin (vector<vector<float>> drift_velocity, int nbins, vector<float> medianVs, vector<float> standard_error)
+{
+    for (int i=0; i<nbins; i++)
+    {
+        int vsize = drift_velocity[i].size();
+        if (vsize == 0) 
+        {
+            medianVs.push_back(-1);
+            standard_error.push_back(0);           
+        }
+        sort(drift_velocity[i].begin(), drift_velocity[i].end());
+        float vmed = TMath::Median(drift_velocity[i].size(), &drift_velocity[i][0]);
+        float trunc_rms = TMath::RMS(drift_velocity[i].begin()+(int)(vsize*0.1), drift_velocity[i].end()-(int)(vsize*0.1));
+        float se = 0.31*trunc_rms/sqrt(0.8*vsize);
+        medianVs.push_back(vmed);
+        standard_error.push_back(se);
+    }
+}
+
+float get_trunc_se (vector<float> Es)
+{
+    int binsize = Es.size();
+    float trunc_rms = TMath::RMS(Es.begin()+(int)(binsize*0.1), Es.end()-(int)(binsize*0.1));
+    float se = trunc_rms/sqrt(0.8*binsize);
+    return se;
+}
+
+void fill_histograms (vector<vector<float>> values, vector<vector<float>> errors, vector<TH1F*> hists, vector<int> nbins)
+{
+    int nhists = hists.size();
+    for (int i=0; i<nhists; i++)
+    {
+        for (int j=0; j<nbins[i]; j++)
+        {
+            hists[i]->SetBinContent(j+1, values[i][j]);
+            hists[i]->SetBinError(j+1, errors[i][j]);
+        }   
+    }
+}
+
 /******************* helper functions end **********************/
 
 
@@ -183,11 +230,12 @@ void Efield::Loop()
     vector<Float_t> trkhitT[nbinsT], trkhitX[nbinsT], trkhitT_neg[nbinsT], trkhitX_neg[nbinsT];
     vector<Float_t> trkhitTx[nbinsX], trkhitXx[nbinsX], trkhitTx_neg[nbinsX], trkhitXx_neg[nbinsX];
 
-    vector<Float_t> model_Efield_T[nbinsT], model_Efield_X[nbinsX];
+    vector<Float_t> model_Efield_T[nbinsT], model_Efield_T_neg[nbinsT];
+    vector<Float_t> model_Efield_X[nbinsX], model_Efield_X_neg[nbinsX];
 
-    vector<vector<double>> drift_velocityT, drift_velocityT_neg;
+    vector<vector<float>> drift_velocityT, drift_velocityT_neg;
     drift_velocityT.resize(nbinsT); drift_velocityT_neg.resize(nbinsT);
-    vector<vector<double>> drift_velocityX, drift_velocityX_neg;
+    vector<vector<float>> drift_velocityX, drift_velocityX_neg;
     drift_velocityX.resize(nbinsX); drift_velocityX_neg.resize(nbinsX);  
 
     /********* vector declaration end *********/
@@ -201,9 +249,13 @@ void Efield::Loop()
     SetVariableBins(varbins, nbinsT, sidebinsizeT, Tmax_pos);
     SetVariableBins(varbins_neg, nbinsT, sidebinsizeT, Tmax_neg);
 
-    TH1F *hist_driftvel_med_fit = new TH1F("hist_driftvel_med_fit", "Median drift velocity beam left (fit per trk);T (ticks);drift velocity (mm/µs)", nbinsT, varbins); // median drift velocity from fitting x vs T. 
-    TH1F *hist_driftvel_med_fit_neg = new TH1F("hist_driftvel_med_fit_neg", "Median drift velocity for beam right (fit per trk);T (ticks);drift velocity (mm/µs)", nbinsT, varbins_neg);
+    TH1F *hist_driftvel_med_fit_T = new TH1F("hist_driftvel_med_fit_T", "Median drift velocity beam left (fit per trk);T (ticks);drift velocity (mm/µs)", nbinsT, varbins); // median drift velocity from fitting x vs T. 
+    TH1F *hist_driftvel_med_fit_T_neg = new TH1F("hist_driftvel_med_fit_T_neg", "Median drift velocity for beam right (fit per trk);T (ticks);drift velocity (mm/µs)", nbinsT, varbins_neg);
     
+    TH1F *hist_driftvel_med_fit_x = new TH1F("hist_driftvel_med_fit_x", "Median drift velocity beam left (fit per trk);x (mm);drift velocity (mm/µs)", nbinsX, 0, xend); // median drift velocity from fitting x vs T. 
+    TH1F *hist_driftvel_med_fit_x_neg = new TH1F("hist_driftvel_med_fit_x_neg", "Median drift velocity for beam right (fit per trk);x (mm);drift velocity (mm/µs)", nbinsX, 0, xend);
+
+
     /* Efield histograms */
     TH1F *hist_efield_med_fit_T = new TH1F("hist_efield_med_fit_T", "Median Electric Field beam left;T (ticks);Electric field (kV/cm)", nbinsT, varbins); // plotted against T
     TH1F *hist_efield_med_fit_T_neg = new TH1F("hist_efield_med_fit_T_neg", "Median Electric Field beam right;T (ticks);Electric field (kV/cm)", nbinsT, varbins_neg);
@@ -272,7 +324,7 @@ void Efield::Loop()
             for (size_t j = 0; j < hit_peakT2->at(i).size(); j++)
             {
                     /****** selet hits located on beam LEFT based on tpc number ******/
-                    if (hit_tpc2->at(i)[j] == 2 || hit_tpc2->at(i)[j] == 6 || hit_tpc2->at(i)[j] == 10)
+                    if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                     {
                         /**** remove hits with coinciding z ****/
                         int remove_hit = 0;
@@ -294,7 +346,7 @@ void Efield::Loop()
                     } // end of if #tpc beam left#
 
                     /****** selet hits located on beam RIGHT based on tpc number ******/
-                    if (hit_tpc2->at(i)[j] == 1 || hit_tpc2->at(i)[j] == 5 || hit_tpc2->at(i)[j] == 9)
+                    if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                     {
                         /**** remove hits with coinciding z ****/
                         int remove_hit = 0;
@@ -493,8 +545,85 @@ void Efield::Loop()
 
     } // end of track loop
 
+    /****** beam left ******/
+    vector<float> medianVs, standard_error; 
+    get_Vmedian_per_bin(drift_velocityT, nbinsT, medianVs, standard_error); 
 
+    /****** beam right ******/
+    vector<float> medianVs_neg, standard_error_neg;
+    get_Vmedian_per_bin(drift_velocityT_neg, nbinsT, medianVs_neg, standard_error_neg);
 
+    for (int i=0; i<nbinsT; i++)
+    {
+        /****** beam left ******/
+        hist_driftvel_med_fit_T->SetBinContent(i+1, medianVs[i]);
+        hist_driftvel_med_fit_T->SetBinError(i+1, standard_error[i]);
+        
+        float medianE = sp->Eval(medianVs[i]);
+        hist_efield_med_fit_T->SetBinContent(i+1, sp->Eval(medianE));
+        hist_efield_med_fit_T->SetBinError(i+1, 0.31*medianE/sqrt(0.8*drift_velocityT.size()));
+
+        float model_binsize = model_Efield_T[i].size();
+        float model_medianE = TMath::Median(model_binsize, &model_Efield_T[i][0]);
+        float model_se = get_trunc_se(model_Efield_T[i]); 
+        hist_LAr_efield_T->SetBinContent(i+1, model_medianE);
+        hist_LAr_efield_T->SetBinError(i+1, model_se);
+
+        /****** beam right ******/ 
+        hist_driftvel_med_fit_T_neg->SetBinContent(i+1, medianVs_neg[i]);
+        hist_driftvel_med_fit_T_neg->SetBinError(i+1, standard_error_neg[i]); 
+
+        float medianE_neg = sp->Eval(medianVs_neg[i]);
+        hist_efield_med_fit_T_neg->SetBinContent(i+1, sp->Eval(medianE_neg)); 
+        hist_efield_med_fit_T_neg->SetBinError(i+1, 0.31*medianE_neg/sqrt(0.8*drift_velocityT_neg.size())); 
+
+        model_binsize = model_Efield_T_neg[i].size();
+        model_medianE = TMath::Median(model_binsize, &model_Efield_T_neg[i][0]);
+        model_se = get_trunc_se(model_Efield_T_neg[i]); 
+        hist_LAr_efield_T_neg->SetBinContent(i+1, model_medianE);
+        hist_LAr_efield_T_neg->SetBinError(i+1, model_se);
+
+    }
+    
+    vector<float> medianVs_x, standard_error_x;
+    get_Vmedian_per_bin(drift_velocityX, nbinsX, medianVs_x, standard_error_x);
+
+    vector<float> medianVs_x_neg, standard_error_x_neg;
+    get_Vmedian_per_bin(drift_velocityX, nbinsX, medianVs_x_neg, standard_error_x_neg);
+
+    for (int i=0; i<nbinsX; i++)
+    {
+
+        /****** beam left ******/
+        hist_driftvel_med_fit_x->SetBinContent(i+1, medianVs_x[i]);
+        hist_driftvel_med_fit_x->SetBinError(i+1, standard_error_x[i]);
+        
+        float medianE_x = sp->Eval(medianVs_x[i]);
+        hist_efield_med_fit_x->SetBinContent(i+1, sp->Eval(medianE_x));
+        hist_efield_med_fit_x->SetBinError(i+1, 0.31*medianE_x/sqrt(0.8*drift_velocityX.size()));
+
+        //hist_LAr_efield_x->SetBinContent(i+1, model_Efield_x[i]);
+
+        /****** beam right ******/ 
+        hist_driftvel_med_fit_x_neg->SetBinContent(i+1, medianVs_x_neg[i]);
+        hist_driftvel_med_fit_x_neg->SetBinError(i+1, standard_error_x_neg[i]); 
+
+        float medianE_x_neg = sp->Eval(medianVs_x_neg[i]);
+        hist_efield_med_fit_x_neg->SetBinContent(i+1, sp->Eval(medianE_x_neg)); 
+        hist_efield_med_fit_x_neg->SetBinError(i+1, 0.31*medianE_x_neg/sqrt(0.8*drift_velocityX_neg.size())); 
+
+        //hist_LAr_efield_x_neg->SetBinContent(i+1, model_Efield_x_neg[i]);
+    }
+
+    cout << "selected trk count in positive drift " << selected_trk_count << endl;
+    cout << "selected trk count in negative drift " << selected_trk_count_neg << endl;
+
+    hist_driftvel_med_fit_T->Write(); hist_driftvel_med_fit_T_neg->Write();
+    hist_efield_med_fit_T->Write(); hist_efield_med_fit_T_neg->Write();
+    
+    hist_driftvel_med_fit_x->Write(); hist_driftvel_med_fit_x_neg->Write();
+    hist_efield_med_fit_x->Write(); hist_efield_med_fit_x_neg->Write(); 
+    
     file->Write();
     file->Close();
 } // end of track loop
