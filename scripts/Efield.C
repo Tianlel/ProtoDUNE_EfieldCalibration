@@ -59,6 +59,7 @@ int dT_hist_xmin = 0;
 int dT_hist_xmax = 5000;
 
 /* output file */
+string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/";
 string output_file_name = "3586_plots.root";
 
 /* optional variables */
@@ -217,8 +218,8 @@ void fill_histograms (vector<vector<float>> values, vector<vector<float>> errors
 /*********** main section of code for Efield calculation **********/
 void Efield::Loop()
 {
-
-    TFile *file = new TFile(output_file_name.c_str(), "recreate");
+    string output = output_PATH + output_file_name;
+    TFile *file = new TFile(output.c_str(), "recreate");
     
     /*** vector declaration ***/
     vector<Float_t> hitpeakT_buffer, hity_buffer, hitz_buffer;
