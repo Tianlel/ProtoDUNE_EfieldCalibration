@@ -1,4 +1,4 @@
-#define Efibeginx
+#define Efield_cxx
 #include "Efield.h"
 #include <iostream>
 #include <vector>
@@ -18,7 +18,7 @@
 #include <TSpline.h>
 #include <TStyle.h>
 #include <assert.h>
-#include "common_funcs.h"
+#include "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/common_funcs.h"
 
 using namespace std;
 
