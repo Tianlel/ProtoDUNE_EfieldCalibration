@@ -81,7 +81,7 @@ TH1D *createhist_vt(string histname, double min, double max, int no_bins)
 }
 
 // getting distortion correction from Ajib
-TFile *dist_map=new TFile("/dune/app/users/tianlel/protoDUNE/E_field/sim/ajib_sceon_distortionmap_feb16.root");
+TFile *dist_map=new TFile("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/distortion_maps/ajib_sceon_distortionmap_feb16.root");
 TH3F *Zcorrection=(TH3F*)dist_map->Get("Zdist_3D"); 
 
 double zcorrect(double x_calc, double y_measured, double z_measured)
@@ -92,7 +92,7 @@ double zcorrect(double x_calc, double y_measured, double z_measured)
 
 ////getting the variable Efield using data driven maps
 // from Ajib
-TFile *ef=new TFile("/dune/app/users/tianlel/protoDUNE/E_field/sim/SCE_DataDriven_180kV_v3.root");
+TFile *ef=new TFile("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/distortion_maps/SCE_DataDriven_180kV_v3.root");
 TH3F *xneg=(TH3F*)ef->Get("Reco_ElecField_X_Neg");
 TH3F *yneg=(TH3F*)ef->Get("Reco_ElecField_Y_Neg");
 TH3F *zneg=(TH3F*)ef->Get("Reco_ElecField_Z_Neg");
