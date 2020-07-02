@@ -55,20 +55,45 @@ void sort_hits_by_T(vector<Hit> &hits)
     });
 }
 
+// need to be tested
 /* given a number n and a list of histogram parameters,
  *  * create 2*n such histograms (positive side & negative
  *   * side) (TH1F)*/
-void create_n_hists(int n, TH1F *hists[n], vector<char*> names,
-                    vector<char*> hist_titles, int x0, int x1,
-                    int nbins)
+void create_n_hists(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
+                    vector<char*> names, vector<char*> hist_titles, 
+                    int x0, int x1, int nbins)
 {
     for (int i=0; i<n; i++)
     {
-        hists[i] = new TH1F(Form("%s_%d", names[i], i), 
-                            Form("%s", hist_titles[i]),
+        hists_pos[i] = new TH1F(Form("%s_pos_%d", names[i], i), 
+                            Form("%s (Beam Left)", hist_titles[i]),
+                            nbins, x0, x1);
+        hists_neg[i] = new TH1F(Form("%s_neg_%d", names[i], i),
+                            Form("%s (Beam Right)", hist_titles[i]),
                             nbins, x0, x1);
     }
 }
+
+// need to be tested
+/* given a number n and a list of histogram parameters,
+ *  * create 2*n such histograms (positive side & negative
+ *   * side) (TH2F)*/
+void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
+                    vector<char*> names, vector<char*> hist_titles, 
+                    int x0, int x1, int nbinsX,
+                    int y0, int y1, int nbinsY)
+{
+    for (int i=0; i<n; i++)
+    {
+        hists_pos[i] = new TH2F(Form("%s_pos_%d", names[i], i), 
+                            Form("%s (Beam Left)", hist_titles[i]),
+                            nbinX, x0, x1, nbinsY, y0, y1);
+        hists_neg[i] = new TH2F(Form("%s_neg_%d", names[i], i),
+                            Form("%s (Beam Right)", hist_titles[i]),
+                            nbinX, x0, x1, nbinsY, y0, y1);
+    }
+}
+
 
 /********* helper functions end *********/
 
