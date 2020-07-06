@@ -48,25 +48,37 @@ int tpc_right_front = 1, tpc_right_mid = 5, tpc_right_back = 9;
 /********* struct definition *********/
 struct Hit {
     float peakT;
-    float deltaT;
+    float deltaT_local;
+    float deltaT_total;
     float y;
     float z;
     float x_calculated;
     int tpc;
 
     /*** constructors ***/
-    Hit() : peakT( 0.0f ), deltaT( 0.0f ),
+    Hit() : peakT( 0.0f ), deltaT_local( 0.0f ),
             y( 0.0f ), z( 0.0f ), x_calculated( 0.0f ),
             tpc( 0 ) {}
-    Hit( float peakTIn, float deltaTIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
-        peakT( peakTIn ), deltaT( deltaTIn ), y( yIn ), z( zIn ), x_calculated( x_calcIn ), tpc( tpcIn ) {}
+    Hit( float peakTIn, float deltaT_localIn, float deltaT_totalIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
+        peakT( peakTIn ), deltaT_total( deltaT_totalIn ), deltaT_local( deltaT_localIn ), 
+            y( yIn ), z( zIn ), x_calculated( x_calcIn ), tpc( tpcIn ) {}
 
     /*** member functions ***/
-    void print();
+    void print(int verbose);
 };
 
-void Hit::print(){
-    cout<<"peakT = "<<peakT<<", deltaT = "<<deltaT
+// print 
+void Hit::print(int verbose){
+    if (verbose == 0)
+        cout<<"x_calc = "<<x_calculated<<", y = "<<y<<", z = "<<z<<endl;
+
+    if (verbose == 1)
+        cout<<"x_calc = "<<x_calculated<<", y = "<<y<<", z = "<<z
+        <<", deltaT_total = "<<deltaT_total<<endl;
+
+    if (verbose == 5)
+        cout<<"peakT = "<<peakT<<", deltaT_total = "<<deltaT_total
+        <<", deltaT_local = "<<deltaT_local
         <<", x_calc = "<<x_calculated
         <<", y = "<<y<<", z = "<<z<<", tpc = "<<tpc<<endl;
 }
@@ -81,9 +93,11 @@ struct Track {
     // only to be used after the hits are sorted based on peakT
     float Tmin() {return hits[0].peakT;};
     int size() {return hits.size();};
+    int deltaT_total() {return hits[hits.size()-1].peakT - hits[0].peakT;};
+    Hit cathode_hit() {return hits[hits.size()-1];};
     void sort_by_T();
-    void set_deltaT(float Tmin);
-    void print();
+    void set_deltaT_local(float Tmin);
+    void print(int verbose);
 };
 
 void Track::sort_by_T(){
@@ -93,15 +107,15 @@ void Track::sort_by_T(){
     });
 }
 
-void Track::set_deltaT(float Tmin){
+void Track::set_deltaT_local(float Tmin){
     for (int i=0; i<hits.size(); i++){
-        hits[i].deltaT = hits[i].peakT - Tmin;       
+        hits[i].deltaT_local = hits[i].peakT - Tmin;       
     }   
 }
 
-void Track::print(){
+void Track::print(int verbose){
     for (int i=0; i<hits.size(); i++){
-        hits[i].Hit::print();
+        hits[i].Hit::print(verbose);
     }
 }
 
@@ -206,8 +220,8 @@ void frame::Loop()
     int nbinsT = detector_Tmax / Tbinsize; 
     TH1F *deltaT_YZ_hists[deltaT_YZ_hists_num], *deltaT_YZ_hists_neg[deltaT_YZ_hists_num];
     char deltaT_YZ_hist_name[] = "YZbin_deltaT_distribution_hist",
-         deltaT_YZ_hist_title[] = "deltaT distribution (YZ plane bin)",
-         deltaT_YZ_hist_xunit[] = "deltaT (ticks)",
+         deltaT_YZ_hist_title[] = "deltaT_total distribution (YZ plane bin)",
+         deltaT_YZ_hist_xunit[] = "deltaT_total (ticks)",
          deltaT_YZ_hist_yunit[] = "number of hits";
     create_n_hists(deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
                    deltaT_YZ_hist_name, deltaT_YZ_hist_title, 
@@ -243,7 +257,7 @@ void frame::Loop()
                 /****** select hits located on beam LEFT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                 {
-                    hits.push_back( Hit(hit_peakT2->at(i)[j], 0,
+                    hits.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
                                         9999.,hit_tpc2->at(i)[j]));  
@@ -251,7 +265,7 @@ void frame::Loop()
                 /****** selet hits located on beam RIGHT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
-                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0,
+                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
                                         -9999.,hit_tpc2->at(i)[j]));
@@ -264,23 +278,33 @@ void frame::Loop()
                 Track trk = Track(hits);
                 trk.Track::sort_by_T();
                 float Tmin = trk.Tmin();
-                trk.Track::set_deltaT(Tmin);
+                trk.Track::set_deltaT_local(Tmin);
+                selected_tracks.push_back(trk);
 
-                // fill deltaT distribution histograms
-                for (int i=0; i<trk.size(); i++)
-                {
-                    int ybin = trk.hits[i].y / Ybinsize;
-                    int zbin = trk.hits[i].z / Zbinsize;
-                    if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
-                    deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(trk.hits[i].deltaT);  
-
-                }
-            }  
+           }  
         } // end of trk loop
+
+        // fill deltaT distribution histograms
+        for (int i=0; i<selected_tracks.size(); i++)
+        {
+            int ybin = selected_tracks[i].cathode_hit().y / Ybinsize;
+            int zbin = selected_tracks[i].cathode_hit().z / Zbinsize;
+            if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
+            deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks[i].deltaT_total());  
+
+        }
+ 
+
     } // end of nentries loop
 
     for (int i=0; i<deltaT_YZ_hists_num; i++) {
         deltaT_YZ_hists[i]->Write();
     }
 
+
+    cout<<"selected_trk_count_pos = "<<selected_tracks.size()<<endl
+        <<"selected_trk_count_neg = "<<selected_tracks_neg.size()<<endl;
+    
+    file->Write();
+    file->Close();
 } 
