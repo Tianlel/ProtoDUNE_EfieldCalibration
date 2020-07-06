@@ -44,6 +44,10 @@ struct Hit {
         peakT( peakTIn ), y( yIn ), z( zIn ), x_calculated( x_calcIn ),
         tpc( tpcIn ){}
 };
+
+struct Track { vector<Hit> hits; };
+
+    /*** constructors ***/
 /********* struct definition end *********/
 
 /********* helper functions *********/
@@ -94,6 +98,22 @@ void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
     }
 }
 
+vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
+                              vector<float> z, vector<int> tpc)
+{
+    int hits_count = T.size();
+    vector<Hit> hits;
+    hits.reserve(hits_count);
+
+    for (int i=0; i<hits_count; i++)
+    {
+        hits.push_back( Hit(T[i], y[i], z[i], 9999., tpc[i]) );
+    }
+    sort_hits_by_T(hits);
+
+    return hits;   
+}
+
 
 /********* helper functions end *********/
 
@@ -120,7 +140,7 @@ void frame::Loop()
     if (select_nentries != 0) nentries = select_nentries;   
 
     Long64_t nbytes = 0, nb = 0;
-    for (Long64_t jentry=0; jentry<nentries;jentry++) 
+    for (Long64_t jentry=0; jentry<nentries;jentry++) // event loop
     {
         Long64_t ientry = LoadTree(jentry);
         if (ientry < 0) break;
@@ -153,11 +173,9 @@ void frame::Loop()
                     hitz_buffer_neg.push_back(trkhitz_wire2->at(i)[j]);
                 }
             } // end of hit loop
+       
+            vector<Hit> hits = create_sorted_Hit_vector(hitpeakT_buffer, hity_buffer, hitz_buffer, hittpc_buffer);
+
         } // end of trk loop
-    
-        
-
-
-    
     } // end of nentries loop
 }
