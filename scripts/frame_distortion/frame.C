@@ -18,7 +18,7 @@ string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_Efield
 string output_file_name = "test_plots.root";
 
 /* optional variables */
-Long64_t select_nentries = 0; // 0 -> use all nentries
+Long64_t select_nentries = 1000; // 0 -> use all nentries
 
 /* cut parameters */
 int hits_size_min = 0; 
@@ -46,7 +46,15 @@ struct Hit {
     Hit( float peakTIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
         peakT( peakTIn ), y( yIn ), z( zIn ), x_calculated( x_calcIn ),
         tpc( tpcIn ) {}
+
+    /*** member functions ***/
+    void print();
 };
+
+void Hit::print(){
+    cout<<"peakT = "<<peakT<<", x_calc = "<<x_calculated<<
+          ", y = "<<y<<", z = "<<z<<", tpc = "<<tpc<<endl;
+}
 
 struct Track { 
     vector<Hit> hits; 
@@ -59,19 +67,26 @@ struct Track {
     float Tmin() {return hits[0].peakT;};
     int size() {return hits.size();};
     void sort_by_T();
+    void print();
 };
 
-/********* struct definition end *********/
-
-/********* helper functions *********/
-void Track::sort_by_T()
-{
+void Track::sort_by_T(){
     sort(hits.begin(), hits.end(), [&](const auto& hit1, const auto& hit2)
     {
         return hit1.peakT < hit2.peakT;
     });
 }
 
+void Track::print(){
+    for (int i=0; i<hits.size(); i++){
+        hits[i].Hit::print();
+    }
+}
+
+
+/********* struct definition end *********/
+
+/********* helper functions *********/
 // need to be tested
 /* given a number n and a list of histogram parameters,
  *  * create 2*n such histograms (positive side & negative
