@@ -23,6 +23,19 @@ Long64_t select_nentries = 1000; // 0 -> use all nentries
 /* cut parameters */
 int hits_size_min = 0; 
 
+/* histogram parameters */
+int Ybinsize = 20; // cm
+int Zbinsize = 20; // cm 
+int Tbinsize = 50; // ticks 
+
+int deltaT_min = 0; // ticks
+
+/* detector parameters */
+int detector_Tmax = 6000; // ticks 
+
+int Ymin = 0, Ymax = 600; // cm
+int Zmin = 0, Zmax = 700; // cm
+
 /* frame parameters */
 double frame_Zpositions[7] = {0,120,230,345,465,575,695};
 
@@ -134,6 +147,21 @@ void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
     }
 }
 
+void create_n_hists(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
+                    char name[], char hist_title[], char x_unit[], char y_unit[],
+                    int x0, int x1, int nbinsX)
+{
+    for (int i=0; i<n; i++)
+    {
+        hists_pos[i] = new TH1F(Form("%s_pos_%d", name, i),
+                            Form("%s (Beam Left); %s; %s", hist_title,
+                                 x_unit, y_unit), nbinsX, x0, x1);
+        hists_neg[i] = new TH1F(Form("%s_neg_%d", name, i),
+                            Form("%s (Beam Right); %s; %s", hist_title, 
+                                 x_unit, y_unit), nbinsX, x0, x1);
+    }
+}
+
 /*** probably need to be deleted later
 vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
                               vector<float> z, vector<int> tpc)
@@ -152,6 +180,10 @@ vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
 }
 */
 
+/* Given the Y ans Z bin numbers, return the corresponding 
+ * distribution histogram number */
+int YZhist_num(int i, int j, int nbinsY, int nbinsZ) {return i*nbinsY + j;}
+
 /********* helper functions end *********/
 
 
@@ -169,7 +201,18 @@ void frame::Loop()
     vector<Track> selected_tracks, selected_tracks_neg; 
 
     /****** histogram definition ******/
-    
+    int nbinsY = Ymax / Ybinsize, nbinsZ = Zmax / Zbinsize;
+    int deltaT_YZ_hists_num = nbinsY * nbinsZ;
+    int nbinsT = detector_Tmax / Tbinsize; 
+    TH1F *deltaT_YZ_hists[deltaT_YZ_hists_num], *deltaT_YZ_hists_neg[deltaT_YZ_hists_num];
+    char deltaT_YZ_hist_name[] = "YZbin_deltaT_distribution_hist",
+         deltaT_YZ_hist_title[] = "deltaT distribution (YZ plane bin)",
+         deltaT_YZ_hist_xunit[] = "deltaT (ticks)",
+         deltaT_YZ_hist_yunit[] = "number of hits";
+    create_n_hists(deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
+                   deltaT_YZ_hist_name, deltaT_YZ_hist_title, 
+                   deltaT_YZ_hist_xunit, deltaT_YZ_hist_yunit,
+                   nbinsT, deltaT_min, detector_Tmax); 
 
     /****** histogram definition ******/
 
@@ -222,10 +265,22 @@ void frame::Loop()
                 trk.Track::sort_by_T();
                 float Tmin = trk.Tmin();
                 trk.Track::set_deltaT(Tmin);
-                trk.Track::print();
-             }  
-              // float Tmin = hits             
 
+                // fill deltaT distribution histograms
+                for (int i=0; i<trk.size(); i++)
+                {
+                    int ybin = trk.hits[i].y / Ybinsize;
+                    int zbin = trk.hits[i].z / Zbinsize;
+                    if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
+                    deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(trk.hits[i].deltaT);  
+
+                }
+            }  
         } // end of trk loop
     } // end of nentries loop
-}
+
+    for (int i=0; i<deltaT_YZ_hists_num; i++) {
+        deltaT_YZ_hists[i]->Write();
+    }
+
+} 
