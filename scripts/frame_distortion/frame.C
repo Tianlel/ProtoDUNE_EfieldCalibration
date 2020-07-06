@@ -20,6 +20,9 @@ string output_file_name = "test_plots.root";
 /* optional variables */
 Long64_t select_nentries = 0; // 0 -> use all nentries
 
+/* cut parameters */
+int hits_size_min = 0; 
+
 /* frame parameters */
 double frame_Zpositions[7] = {0,120,230,345,465,575,695};
 
@@ -42,16 +45,26 @@ struct Hit {
             tpc( 0 ) {}
     Hit( float peakTIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
         peakT( peakTIn ), y( yIn ), z( zIn ), x_calculated( x_calcIn ),
-        tpc( tpcIn ){}
+        tpc( tpcIn ) {}
 };
 
-struct Track { vector<Hit> hits; };
+struct Track { 
+    vector<Hit> hits; 
 
-    /*** constructors ***/
+    /*** constructor ***/
+    Track(vector<Hit> hs): hits(hs) {}
+
+    /*** member functions ***/
+    // only to be used after the hits are sorted based on peakT
+    float Tmin() {return hits[0].peakT;};
+    int size() {return hits.size();};
+    void sort_by_T();
+};
+
 /********* struct definition end *********/
 
 /********* helper functions *********/
-void sort_hits_by_T(vector<Hit> &hits)
+void Track::sort_by_T()
 {
     sort(hits.begin(), hits.end(), [&](const auto& hit1, const auto& hit2)
     {
@@ -98,6 +111,7 @@ void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
     }
 }
 
+/*** probably need to be deleted later
 vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
                               vector<float> z, vector<int> tpc)
 {
@@ -113,7 +127,7 @@ vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
 
     return hits;   
 }
-
+*/
 
 /********* helper functions end *********/
 
@@ -128,6 +142,8 @@ void frame::Loop()
     vector<Int_t> hittpc_buffer, hitwire_buffer;
     vector<Float_t> hitpeakT_buffer_neg, hity_buffer_neg, hitz_buffer_neg;
     vector<Int_t> hittpc_buffer_neg, hitwire_buffer_neg;
+
+    vector<Track> selected_tracks, selected_tracks_neg; 
 
     /****** histogram definition ******/
     
@@ -153,28 +169,37 @@ void frame::Loop()
         /* trk loop: ith track */
         for(size_t i=0;i<trkhitz_wire2->size();i++)
         {
+            vector<Hit> hits, hits_neg; 
+
             /* hit loop: jth hit */
             for(size_t j=0;j<trkhitz_wire2->at(i).size();j++)
             {
                 /****** select hits located on beam LEFT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                 {
-                    hitpeakT_buffer.push_back(hit_peakT2->at(i)[j]);
-                    hittpc_buffer.push_back(hit_tpc2->at(i)[j]);
-                    hity_buffer.push_back(trkhity2->at(i)[j]);
-                    hitz_buffer.push_back(trkhitz_wire2->at(i)[j]);
+                    hits.push_back( Hit(hit_peakT2->at(i)[j],
+                                        trkhity2->at(i)[j],
+                                        trkhitz_wire2->at(i)[j],
+                                        9999.,hit_tpc2->at(i)[j]));  
                 }
                 /****** selet hits located on beam RIGHT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
-                    hitpeakT_buffer_neg.push_back(hit_peakT2->at(i)[j]);
-                    hittpc_buffer_neg.push_back(hit_tpc2->at(i)[j]);
-                    hity_buffer_neg.push_back(trkhity2->at(i)[j]);
-                    hitz_buffer_neg.push_back(trkhitz_wire2->at(i)[j]);
+                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j],
+                                        trkhity2->at(i)[j],
+                                        trkhitz_wire2->at(i)[j],
+                                        -9999.,hit_tpc2->at(i)[j]));
                 }
             } // end of hit loop
-       
-            vector<Hit> hits = create_sorted_Hit_vector(hitpeakT_buffer, hity_buffer, hitz_buffer, hittpc_buffer);
+
+            if (hits.size() > hits_size_min)
+            {
+                // create Track object
+                Track trk = Track(hits);
+                trk.Track::sort_by_T();
+                float Tmin = trk.Tmin();
+             }  
+              // float Tmin = hits             
 
         } // end of trk loop
     } // end of nentries loop
