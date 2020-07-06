@@ -87,10 +87,10 @@ void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
     {
         hists_pos[i] = new TH2F(Form("%s_pos_%d", names[i], i), 
                             Form("%s (Beam Left)", hist_titles[i]),
-                            nbinX, x0, x1, nbinsY, y0, y1);
+                            nbinsX, x0, x1, nbinsY, y0, y1);
         hists_neg[i] = new TH2F(Form("%s_neg_%d", names[i], i),
                             Form("%s (Beam Right)", hist_titles[i]),
-                            nbinX, x0, x1, nbinsY, y0, y1);
+                            nbinsX, x0, x1, nbinsY, y0, y1);
     }
 }
 
