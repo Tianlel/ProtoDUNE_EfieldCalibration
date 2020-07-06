@@ -14,7 +14,7 @@ using namespace std;
 /********** constant variables ***********/
 
 /* output file */
-string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/frame_distortion/";
+string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
 string output_file_name = "test_plots.root";
 
 /* optional variables */
@@ -35,25 +35,27 @@ int tpc_right_front = 1, tpc_right_mid = 5, tpc_right_back = 9;
 /********* struct definition *********/
 struct Hit {
     float peakT;
+    float deltaT;
     float y;
     float z;
     float x_calculated;
     int tpc;
 
     /*** constructors ***/
-    Hit() : peakT( 0.0f ), y( 0.0f ), z( 0.0f ), x_calculated( 0.0f ),
+    Hit() : peakT( 0.0f ), deltaT( 0.0f ),
+            y( 0.0f ), z( 0.0f ), x_calculated( 0.0f ),
             tpc( 0 ) {}
-    Hit( float peakTIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
-        peakT( peakTIn ), y( yIn ), z( zIn ), x_calculated( x_calcIn ),
-        tpc( tpcIn ) {}
+    Hit( float peakTIn, float deltaTIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
+        peakT( peakTIn ), deltaT( deltaTIn ), y( yIn ), z( zIn ), x_calculated( x_calcIn ), tpc( tpcIn ) {}
 
     /*** member functions ***/
     void print();
 };
 
 void Hit::print(){
-    cout<<"peakT = "<<peakT<<", x_calc = "<<x_calculated<<
-          ", y = "<<y<<", z = "<<z<<", tpc = "<<tpc<<endl;
+    cout<<"peakT = "<<peakT<<", deltaT = "<<deltaT
+        <<", x_calc = "<<x_calculated
+        <<", y = "<<y<<", z = "<<z<<", tpc = "<<tpc<<endl;
 }
 
 struct Track { 
@@ -67,6 +69,7 @@ struct Track {
     float Tmin() {return hits[0].peakT;};
     int size() {return hits.size();};
     void sort_by_T();
+    void set_deltaT(float Tmin);
     void print();
 };
 
@@ -77,12 +80,17 @@ void Track::sort_by_T(){
     });
 }
 
+void Track::set_deltaT(float Tmin){
+    for (int i=0; i<hits.size(); i++){
+        hits[i].deltaT = hits[i].peakT - Tmin;       
+    }   
+}
+
 void Track::print(){
     for (int i=0; i<hits.size(); i++){
         hits[i].Hit::print();
     }
 }
-
 
 /********* struct definition end *********/
 
@@ -192,7 +200,7 @@ void frame::Loop()
                 /****** select hits located on beam LEFT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                 {
-                    hits.push_back( Hit(hit_peakT2->at(i)[j],
+                    hits.push_back( Hit(hit_peakT2->at(i)[j], 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
                                         9999.,hit_tpc2->at(i)[j]));  
@@ -200,7 +208,7 @@ void frame::Loop()
                 /****** selet hits located on beam RIGHT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
-                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j],
+                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
                                         -9999.,hit_tpc2->at(i)[j]));
@@ -213,6 +221,8 @@ void frame::Loop()
                 Track trk = Track(hits);
                 trk.Track::sort_by_T();
                 float Tmin = trk.Tmin();
+                trk.Track::set_deltaT(Tmin);
+                trk.Track::print();
              }  
               // float Tmin = hits             
 
