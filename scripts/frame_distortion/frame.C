@@ -18,7 +18,7 @@ string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_Efield
 string output_file_name = "test_plots.root";
 
 /* optional variables */
-Long64_t select_nentries = 100000; // 0 -> use all nentries
+Long64_t select_nentries = 150000; // 0 -> use all nentries
 
 /* cut parameters */
 int hits_size_min = 5; 
@@ -37,7 +37,7 @@ int Ymin = 0, Ymax = 600; // cm
 int Zmin = 0, Zmax = 700; // cm
 
 /* frame parameters */
-double frame_Zpositions[7] = {0,120,230,345,465,575,695};
+vector<double> frame_Zpositions{0,120,230,345,465,575,695};
 
 /* tpc number (LArSoft numbering) */
 int tpc_left_front = 2, tpc_left_mid = 6, tpc_left_back = 10;
@@ -97,6 +97,7 @@ struct Track {
     int size() {return hits.size();};
     int deltaT_total() {return hits[hits.size()-1].peakT - hits[0].peakT;};
     Hit cathode_hit() {return hits[hits.size()-1];};
+    int get_cathode_frame_tag() {return hits[hits.size()-1].frame_tag;};
     void sort_by_T();
     void set_deltaT_local(float Tmin);
     void print(int verbose);
@@ -132,6 +133,7 @@ int get_frame_tag(int z)
     if (frame_Zpositions[3]<=z && z<frame_Zpositions[4]) return 3;
     if (frame_Zpositions[4]<=z && z<frame_Zpositions[5]) return 4;
     if (frame_Zpositions[5]<=z && z<frame_Zpositions[6]) return 5;
+    return -1;
 }
 
 // need to be tested
@@ -235,13 +237,13 @@ void frame::Loop()
     /* for plotting deltaT vs Zframe (to get bounds for cathode-anode crosser cut) */
     int deltaT_zframe_hists_num = frame_Zpositions.size() - 1;
     TH1F *deltaT_zframe_hists[deltaT_zframe_hists_num], *deltaT_zframe_hists_neg[deltaT_zframe_hists_num]; 
-    vector<const char*> deltaT_zframe_hists_names (Zframe_hists_num, "zframe_deltaT_distribution_hists"),
+    vector<const char*> deltaT_zframe_hists_names (deltaT_zframe_hists_num, "zframe_deltaT_distribution_hists"),
          deltaT_zframe_hists_titles {"deltaT_total distribution (0<=z<120)",
                                      "deltaT_total distribution (120<=z<230)",
                                      "deltaT_total distribution (230<=z<345)",
                                      "deltaT_total distribution (345<=z<465)",
                                      "deltaT_total distribution (465<=z<575)",
-                                     "deltaT_total distribution (575<=z<695)"}
+                                     "deltaT_total distribution (575<=z<695)"};
    create_n_hists(deltaT_zframe_hists_num, deltaT_zframe_hists, deltaT_zframe_hists_neg,
                   deltaT_zframe_hists_names, deltaT_zframe_hists_titles,
                   deltaT_hist_xunit, deltaT_hist_yunit,
@@ -289,7 +291,7 @@ void frame::Loop()
                 /****** select hits located on beam LEFT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                 {
-                    int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]) 
+                    int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
                     hits.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
@@ -299,12 +301,12 @@ void frame::Loop()
                 /****** selet hits located on beam RIGHT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
-                    int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j])
+                    int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
                     hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
-                                        -9999.,hit_tpc2->at(i)[j]),
-                                        frame_tag);
+                                        -9999.,hit_tpc2->at(i)[j],
+                                        frame_tag));
                 }
             } // end of hit loop
 
@@ -312,14 +314,33 @@ void frame::Loop()
             {
                 // create Track object
                 Track trk = Track(hits);
-                trk.Track::sort_by_T();
+                trk.sort_by_T();
                 float Tmin = trk.Tmin();
-                trk.Track::set_deltaT_local(Tmin);
+                trk.set_deltaT_local(Tmin);
                 selected_tracks.push_back(trk);
+                
+                float trk_deltaT_total = trk.deltaT_total();
+                int frame_tag = trk.get_cathode_frame_tag();
+                if (frame_tag == -1) continue;
+                deltaT_zframe_hists[frame_tag]->Fill(trk_deltaT_total);
+            }  
 
-           }  
+            if (hits_neg.size() > hits_size_min)
+            {
+                // create Track object
+                Track trk = Track(hits_neg);
+                trk.sort_by_T();
+                float Tmin = trk.Tmin();
+                trk.set_deltaT_local(Tmin);
+                selected_tracks_neg.push_back(trk);
+                
+                float trk_deltaT_total = trk.deltaT_total();
+                int frame_tag = trk.get_cathode_frame_tag();
+                if (frame_tag == -1) continue;
+                deltaT_zframe_hists_neg[frame_tag]->Fill(trk_deltaT_total);
+            }  
         } // end of trk loop
-
+/*
         // fill deltaT distribution histograms
         for (int i=0; i<selected_tracks.size(); i++)
         {
@@ -329,17 +350,16 @@ void frame::Loop()
             deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks[i].deltaT_total());  
 
         }
- 
+*/
 
     } // end of nentries loop
-
+/*
     for (int i=0; i<deltaT_YZ_hists_num; i++) {
         deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
     }
-
-    deltaT_zframe_hists
+*/
     for (int i=0; i<deltaT_zframe_hists_num; i++) {
-        deltaT_zframe_hists->Write(); deltaT_zframe_hists_neg->Write();
+        deltaT_zframe_hists[i]->Write(); deltaT_zframe_hists_neg[i]->Write();
     }
 
 
