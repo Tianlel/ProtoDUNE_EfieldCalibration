@@ -18,10 +18,10 @@ string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_Efield
 string output_file_name = "test_plots.root";
 
 /* optional variables */
-Long64_t select_nentries = 1000; // 0 -> use all nentries
+Long64_t select_nentries = 100000; // 0 -> use all nentries
 
 /* cut parameters */
-int hits_size_min = 0; 
+int hits_size_min = 5; 
 
 /* histogram parameters */
 int Ybinsize = 20; // cm
@@ -54,14 +54,16 @@ struct Hit {
     float z;
     float x_calculated;
     int tpc;
+    int frame_tag; // 0: [0,120); 1: [120,230); ...; 5: [575,695)
 
     /*** constructors ***/
     Hit() : peakT( 0.0f ), deltaT_local( 0.0f ),
             y( 0.0f ), z( 0.0f ), x_calculated( 0.0f ),
-            tpc( 0 ) {}
-    Hit( float peakTIn, float deltaT_localIn, float deltaT_totalIn, float yIn, float zIn, float x_calcIn, int tpcIn) :
+            tpc( 0 ), frame_tag( 0 ) {}
+    Hit( float peakTIn, float deltaT_localIn, float deltaT_totalIn, float yIn, float zIn, float x_calcIn, int tpcIn, int frame_tagIn) :
         peakT( peakTIn ), deltaT_total( deltaT_totalIn ), deltaT_local( deltaT_localIn ), 
-            y( yIn ), z( zIn ), x_calculated( x_calcIn ), tpc( tpcIn ) {}
+            y( yIn ), z( zIn ), x_calculated( x_calcIn ), 
+            tpc( tpcIn ), frame_tag( frame_tagIn ) {}
 
     /*** member functions ***/
     void print(int verbose);
@@ -122,12 +124,23 @@ void Track::print(int verbose){
 /********* struct definition end *********/
 
 /********* helper functions *********/
+int get_frame_tag(int z)
+{
+    if (frame_Zpositions[0]<=z && z<frame_Zpositions[1]) return 0;
+    if (frame_Zpositions[1]<=z && z<frame_Zpositions[2]) return 1;
+    if (frame_Zpositions[2]<=z && z<frame_Zpositions[3]) return 2;
+    if (frame_Zpositions[3]<=z && z<frame_Zpositions[4]) return 3;
+    if (frame_Zpositions[4]<=z && z<frame_Zpositions[5]) return 4;
+    if (frame_Zpositions[5]<=z && z<frame_Zpositions[6]) return 5;
+}
+
 // need to be tested
 /* given a number n and a list of histogram parameters,
  *  * create 2*n such histograms (positive side & negative
  *   * side) (TH1F)*/
 void create_n_hists(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
-                    vector<char*> names, vector<char*> hist_titles, 
+                    vector<const char*> names, vector<const char*> hist_titles, 
+                    char x_unit[], char y_unit[],
                     int x0, int x1, int nbins)
 {
     for (int i=0; i<n; i++)
@@ -215,18 +228,37 @@ void frame::Loop()
     vector<Track> selected_tracks, selected_tracks_neg; 
 
     /****** histogram definition ******/
+
+    int nbinsT = detector_Tmax / Tbinsize; 
+    char deltaT_hist_xunit[] = "deltaT_total (ticks)", deltaT_hist_yunit[] = "number of hits";
+
+    /* for plotting deltaT vs Zframe (to get bounds for cathode-anode crosser cut) */
+    int deltaT_zframe_hists_num = frame_Zpositions.size() - 1;
+    TH1F *deltaT_zframe_hists[deltaT_zframe_hists_num], *deltaT_zframe_hists_neg[deltaT_zframe_hists_num]; 
+    vector<const char*> deltaT_zframe_hists_names (Zframe_hists_num, "zframe_deltaT_distribution_hists"),
+         deltaT_zframe_hists_titles {"deltaT_total distribution (0<=z<120)",
+                                     "deltaT_total distribution (120<=z<230)",
+                                     "deltaT_total distribution (230<=z<345)",
+                                     "deltaT_total distribution (345<=z<465)",
+                                     "deltaT_total distribution (465<=z<575)",
+                                     "deltaT_total distribution (575<=z<695)"}
+   create_n_hists(deltaT_zframe_hists_num, deltaT_zframe_hists, deltaT_zframe_hists_neg,
+                  deltaT_zframe_hists_names, deltaT_zframe_hists_titles,
+                  deltaT_hist_xunit, deltaT_hist_yunit,
+                  nbinsT, deltaT_min, detector_Tmax);
+
+
+    /* for plotting deltaT vs YZ plane */
     int nbinsY = Ymax / Ybinsize, nbinsZ = Zmax / Zbinsize;
     int deltaT_YZ_hists_num = nbinsY * nbinsZ;
-    int nbinsT = detector_Tmax / Tbinsize; 
     TH1F *deltaT_YZ_hists[deltaT_YZ_hists_num], *deltaT_YZ_hists_neg[deltaT_YZ_hists_num];
     char deltaT_YZ_hist_name[] = "YZbin_deltaT_distribution_hist",
-         deltaT_YZ_hist_title[] = "deltaT_total distribution (YZ plane bin)",
-         deltaT_YZ_hist_xunit[] = "deltaT_total (ticks)",
-         deltaT_YZ_hist_yunit[] = "number of hits";
+         deltaT_YZ_hist_title[] = "deltaT_total distribution (YZ plane bin)";
     create_n_hists(deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
                    deltaT_YZ_hist_name, deltaT_YZ_hist_title, 
-                   deltaT_YZ_hist_xunit, deltaT_YZ_hist_yunit,
+                   deltaT_hist_xunit, deltaT_hist_yunit,
                    nbinsT, deltaT_min, detector_Tmax); 
+    /* for plotting deltaT vs YZ plane end*/
 
     /****** histogram definition ******/
 
@@ -257,18 +289,22 @@ void frame::Loop()
                 /****** select hits located on beam LEFT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                 {
+                    int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]) 
                     hits.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
-                                        9999.,hit_tpc2->at(i)[j]));  
+                                        9999.,hit_tpc2->at(i)[j],
+                                        frame_tag));  
                 }
                 /****** selet hits located on beam RIGHT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
+                    int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j])
                     hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
                                         trkhity2->at(i)[j],
                                         trkhitz_wire2->at(i)[j],
-                                        -9999.,hit_tpc2->at(i)[j]));
+                                        -9999.,hit_tpc2->at(i)[j]),
+                                        frame_tag);
                 }
             } // end of hit loop
 
@@ -298,7 +334,12 @@ void frame::Loop()
     } // end of nentries loop
 
     for (int i=0; i<deltaT_YZ_hists_num; i++) {
-        deltaT_YZ_hists[i]->Write();
+        deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
+    }
+
+    deltaT_zframe_hists
+    for (int i=0; i<deltaT_zframe_hists_num; i++) {
+        deltaT_zframe_hists->Write(); deltaT_zframe_hists_neg->Write();
     }
 
 
