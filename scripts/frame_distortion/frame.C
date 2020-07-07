@@ -15,7 +15,7 @@ using namespace std;
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "test_test.root";
+string output_file_name = "YZ_distribution.root";
 
 /* optional variables */
 Long64_t select_nentries = 150000; // 0 -> use all nentries
@@ -151,6 +151,18 @@ bool is_CA_crosser(Track trk, int frame_tag, int side)
     else return false;   
 }
 
+/* given a non-empty histogram, return the median value;
+ * given empty histogram, return 0*/
+double get_hist_med (TH1F *h)
+{
+    if (h->GetEntries() == 0) return 0;
+    double x, q;
+    q = 0.5;
+    h->ComputeIntegral();
+    h->GetQuantiles(1, &x, &q);
+    return x;
+}
+
 // need to be tested
 /* given a number n and a list of histogram parameters,
  *  * create 2*n such histograms (positive side & negative
@@ -277,6 +289,11 @@ void frame::Loop()
                    nbinsT, deltaT_min, detector_Tmax); 
     /* for plotting deltaT vs YZ plane end*/
 
+    /* for plotting deltaT_med vs YZ plane */
+    TH2F *deltaT_YZ_h2 = new TH2F("deltaT_YZ_h2","deltaT vs YZ bin (beam left); Y (cm); Z(cm); deltaT (ticks)", nbinsY, Ymin, Ymax, nbinsZ, Zmin, Zmax);
+    TH2F *deltaT_YZ_h2_neg = new TH2F("deltaT_YZ_h2_neg","deltaT vs YZ bin (beam right); Y (cm); Z(cm); deltaT (ticks)", nbinsY, Ymin, Ymax, nbinsZ, Zmin, Zmax);
+
+
     /****** histogram definition ******/
 
     if (fChain == 0) return;
@@ -287,6 +304,7 @@ void frame::Loop()
     Long64_t nbytes = 0, nb = 0;
     for (Long64_t jentry=0; jentry<nentries;jentry++) // event loop
     {
+  
         Long64_t ientry = LoadTree(jentry);
         if (ientry < 0) break;
         nb = fChain->GetEntry(jentry);   nbytes += nb;
@@ -313,7 +331,7 @@ void frame::Loop()
                                         9999.,hit_tpc2->at(i)[j],
                                         frame_tag));  
                 }
-                /****** selet hits located on beam RIGHT based on tpc number ******/
+                /****** select hits located on beam RIGHT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
                     int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
@@ -377,12 +395,28 @@ void frame::Loop()
         int zbin = selected_tracks_neg[i].cathode_hit().z / Zbinsize;
         if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
         deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks_neg[i].deltaT_total());
-
     }   
 
-    for (int i=0; i<deltaT_YZ_hists_num; i++) {
+    for (int i=0; i<nbinsY; i++) 
+    {
+        for (int j=0; j<nbinsZ; j++) 
+        {
+            float bin_deltaT_med = (float) get_hist_med(deltaT_YZ_hists[YZhist_num(i,j,nbinsY,nbinsZ)]);
+            if (bin_deltaT_med == 0) continue;
+            deltaT_YZ_h2->SetBinContent(i+1,j+1,bin_deltaT_med);
+
+            float bin_deltaT_med_neg = (float) get_hist_med(deltaT_YZ_hists_neg[YZhist_num(i,j,nbinsY,nbinsZ)]);
+            if (bin_deltaT_med_neg == 0) continue;
+            deltaT_YZ_h2_neg->SetBinContent(i+1,j+1,bin_deltaT_med_neg);
+        }
+    }
+       
+    for (int i=0; i<deltaT_YZ_hists_num; i++)
+    {
         deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
     }
+
+    deltaT_YZ_h2->Write(); deltaT_YZ_h2_neg->Write();
 
 /*    for (int i=0; i<deltaT_zframe_hists_num; i++) {
         deltaT_zframe_hists[i]->Write(); deltaT_zframe_hists_neg[i]->Write();
