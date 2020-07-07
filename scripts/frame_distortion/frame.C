@@ -15,7 +15,7 @@ using namespace std;
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "test_YZ_deltaT_distribution_plots.root";
+string output_file_name = "test_test.root";
 
 /* optional variables */
 Long64_t select_nentries = 150000; // 0 -> use all nentries
@@ -252,7 +252,7 @@ void frame::Loop()
     /* for plotting deltaT vs Zframe (to get bounds for cathode-anode crosser cut) */
     int deltaT_zframe_hists_num = frame_Zpositions.size() - 1;
     TH1F *deltaT_zframe_hists[deltaT_zframe_hists_num], *deltaT_zframe_hists_neg[deltaT_zframe_hists_num]; 
-    vector<const char*> deltaT_zframe_hists_names (deltaT_zframe_hists_num, "zframe_deltaT_distribution_hists"),
+    vector<const char*> deltaT_zframe_hists_names (deltaT_zframe_hists_num, "zframe_ACcrossers_deltaT_distribution_hists"),
          deltaT_zframe_hists_titles {"deltaT_total distribution (0<=z<120)",
                                      "deltaT_total distribution (120<=z<230)",
                                      "deltaT_total distribution (230<=z<345)",
@@ -336,9 +336,9 @@ void frame::Loop()
                 if (is_CA_crosser(trk, frame_tag, 0))
                 {
                     selected_tracks.push_back(trk);
-                    //float trk_deltaT_total = trk.deltaT_total();
-                    //if (frame_tag == -1) continue;
-                    //deltaT_zframe_hists[frame_tag]->Fill(trk_deltaT_total);
+                    float trk_deltaT_total = trk.deltaT_total();
+                    if (frame_tag == -1) continue;
+                    deltaT_zframe_hists[frame_tag]->Fill(trk_deltaT_total);
                 }  
             }
 
@@ -353,25 +353,32 @@ void frame::Loop()
                 if (is_CA_crosser(trk, frame_tag, 1))
                 {    
                     selected_tracks_neg.push_back(trk);          
-                    //float trk_deltaT_total = trk.deltaT_total();
-                    //if (frame_tag == -1) continue;
-                    //deltaT_zframe_hists_neg[frame_tag]->Fill(trk_deltaT_total);
+                    float trk_deltaT_total = trk.deltaT_total();
+                    if (frame_tag == -1) continue;
+                    deltaT_zframe_hists_neg[frame_tag]->Fill(trk_deltaT_total);
                 }
             }  
         } // end of trk loop
-
-        // fill deltaT distribution histograms
-        for (int i=0; i<selected_tracks.size(); i++)
-        {
-            int ybin = selected_tracks[i].cathode_hit().y / Ybinsize;
-            int zbin = selected_tracks[i].cathode_hit().z / Zbinsize;
-            if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
-            deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks[i].deltaT_total());  
-
-        }
-
-
     } // end of nentries loop
+
+    // fill deltaT distribution histograms
+    for (int i=0; i<selected_tracks.size(); i++)
+    {
+        int ybin = selected_tracks[i].cathode_hit().y / Ybinsize;
+        int zbin = selected_tracks[i].cathode_hit().z / Zbinsize;
+        if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
+        deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks[i].deltaT_total());  
+
+    }
+
+    for (int i=0; i<selected_tracks_neg.size(); i++)
+    {   
+        int ybin = selected_tracks_neg[i].cathode_hit().y / Ybinsize;
+        int zbin = selected_tracks_neg[i].cathode_hit().z / Zbinsize;
+        if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
+        deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks_neg[i].deltaT_total());
+
+    }   
 
     for (int i=0; i<deltaT_YZ_hists_num; i++) {
         deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
