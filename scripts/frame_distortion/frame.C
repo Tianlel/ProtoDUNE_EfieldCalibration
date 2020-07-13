@@ -15,13 +15,16 @@ using namespace std;
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "YZ_distribution.root";
+string output_file_name = "deltaT_distribution_per_YZbin_without_cut_ALLEVENTS.root";
 
 /* optional variables */
-Long64_t select_nentries = 150000; // 0 -> use all nentries
+Long64_t select_nentries = 1500000; // 0 -> use all nentries
+int set_jentry = 0;
+int print_debug_message = 0;
 
 /* cut parameters */
 int hits_size_min = 5; 
+int CA_crossing_cut = 0;
 
 // deltaT cut for cathode-anode crosser selection
 int Tcut_mid[6][2] = { {4595, 4605}, {4595, 4607}, {4593, 4608},
@@ -130,6 +133,8 @@ void Track::print(int verbose){
 /********* struct definition end *********/
 
 /********* helper functions *********/
+void print(string message) { cout<<message<<endl;}
+
 int get_frame_tag(int z)
 {
     if (frame_Zpositions[0]<=z && z<frame_Zpositions[1]) return 0;
@@ -302,25 +307,33 @@ void frame::Loop()
     if (select_nentries != 0) nentries = select_nentries;   
 
     Long64_t nbytes = 0, nb = 0;
-    for (Long64_t jentry=0; jentry<nentries;jentry++) // event loop
+    for (Long64_t jentry=set_jentry; jentry<nentries;jentry++) // event loop
     {
+        cout<<"jentry start"<<endl;
   
         Long64_t ientry = LoadTree(jentry);
+        cout<<ientry<<endl;
         if (ientry < 0) break;
+        print("fChain->GetEntry");
         nb = fChain->GetEntry(jentry);   nbytes += nb;
         if (jentry % 10000 == 0)
             std::cout << jentry << "/" << nentries << std::endl;
 
+        print("!trkhitz_wire2->size()");
         if(!trkhitz_wire2->size()) continue;
 
+        if (print_debug_message) print("entering trk loop");
         /* trk loop: ith track */
         for(size_t i=0;i<trkhitz_wire2->size();i++)
         {
+            if (print_debug_message) print("declare hit vector");
             vector<Hit> hits, hits_neg; 
 
+            if (print_debug_message) print("entering hit loop");
             /* hit loop: jth hit */
             for(size_t j=0;j<trkhitz_wire2->at(i).size();j++)
             {
+                if (print_debug_message) print("filling hits vectors");
                 /****** select hits located on beam LEFT based on tpc number ******/
                 if (hit_tpc2->at(i)[j] == tpc_left_front || hit_tpc2->at(i)[j] == tpc_left_mid || hit_tpc2->at(i)[j] == tpc_left_back)
                 {
@@ -345,39 +358,61 @@ void frame::Loop()
 
             if (hits.size() > hits_size_min)
             {
+                if (print_debug_message) print("create track object");
                 // create Track object
                 Track trk = Track(hits);
                 trk.sort_by_T();
                 float Tmin = trk.Tmin();
                 trk.set_deltaT_local(Tmin);
                 int frame_tag = trk.get_cathode_frame_tag();
-                if (is_CA_crosser(trk, frame_tag, 0))
+                if (frame_tag == -1) exit(0);
+
+                float trk_deltaT_total = trk.deltaT_total();
+                deltaT_zframe_hists[frame_tag]->Fill(trk_deltaT_total);
+                
+                if (CA_crossing_cut)
                 {
+                    if (is_CA_crosser(trk, frame_tag, 0))
+                        if (print_debug_message) print("push_back selected_tracks");
+                        selected_tracks.push_back(trk);
+                }
+                else
+                {
+                    if (print_debug_message) print("push_back selected_tracks");
                     selected_tracks.push_back(trk);
-                    float trk_deltaT_total = trk.deltaT_total();
-                    if (frame_tag == -1) continue;
-                    deltaT_zframe_hists[frame_tag]->Fill(trk_deltaT_total);
-                }  
+                }
             }
 
             if (hits_neg.size() > hits_size_min)
             {
+                if (print_debug_message) print("create track object");
                 // create Track object
                 Track trk = Track(hits_neg);
                 trk.sort_by_T();
                 float Tmin = trk.Tmin();
                 trk.set_deltaT_local(Tmin);
                 int frame_tag = trk.get_cathode_frame_tag();
-                if (is_CA_crosser(trk, frame_tag, 1))
-                {    
-                    selected_tracks_neg.push_back(trk);          
-                    float trk_deltaT_total = trk.deltaT_total();
-                    if (frame_tag == -1) continue;
-                    deltaT_zframe_hists_neg[frame_tag]->Fill(trk_deltaT_total);
+                if (frame_tag == -1) exit(0);
+
+                float trk_deltaT_total = trk.deltaT_total();
+                deltaT_zframe_hists_neg[frame_tag]->Fill(trk_deltaT_total);
+
+                if (CA_crossing_cut)
+                {   
+                    if (is_CA_crosser(trk, frame_tag, 1))
+                        if (print_debug_message) print("push_back selected_tracks_neg");
+                        selected_tracks_neg.push_back(trk);
+                }
+                else 
+                {
+                    if (print_debug_message) print("push_back selected_tracks_neg");
+
+                    selected_tracks_neg.push_back(trk);
                 }
             }  
+            if (print_debug_message) print("exiting trk loop");
         } // end of trk loop
-    } // end of nentries loop
+    } // end of jentries loop
 
     // fill deltaT distribution histograms
     for (int i=0; i<selected_tracks.size(); i++)
@@ -411,12 +446,12 @@ void frame::Loop()
         }
     }
        
-    for (int i=0; i<deltaT_YZ_hists_num; i++)
+  /* for (int i=0; i<deltaT_YZ_hists_num; i++)
     {
         deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
     }
 
-    deltaT_YZ_h2->Write(); deltaT_YZ_h2_neg->Write();
+    deltaT_YZ_h2->Write(); deltaT_YZ_h2_neg->Write(); */
 
 /*    for (int i=0; i<deltaT_zframe_hists_num; i++) {
         deltaT_zframe_hists[i]->Write(); deltaT_zframe_hists_neg[i]->Write();

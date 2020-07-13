@@ -1,8 +1,7 @@
 //////////////////////////////////////////////////////////
 // This class has been automatically generated on
-// Thu Jul  2 08:00:06 2020 by ROOT version 6.18/04
-// from TTree Event/Event Tree from Reco
-// found on file: /dune/data/users/tianlel/reco/v08_32_01/combined2.root
+// Thu Nov 14 21:49:31 2019 by ROOT version 6.18/04
+// from TChain velocity/Event/
 //////////////////////////////////////////////////////////
 
 #ifndef frame_h
@@ -145,12 +144,25 @@ frame::frame(TTree *tree) : fChain(0)
 // if parameter tree is not specified (or zero), connect the file
 // used to generate this class and read the Tree.
    if (tree == 0) {
-      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("/dune/data/users/tianlel/reco/v08_32_01/combined2.root");
+
+#ifdef SINGLE_TREE
+      // The following code should be used if you want this class to access
+      // a single tree instead of a chain
+      TFile *f = (TFile*)gROOT->GetListOfFiles()->FindObject("Memory Directory");
       if (!f || !f->IsOpen()) {
-         f = new TFile("/dune/data/users/tianlel/reco/v08_32_01/combined2.root");
+         f = new TFile("Memory Directory");
       }
-      TDirectory * dir = (TDirectory*)f->Get("/dune/data/users/tianlel/reco/v08_32_01/combined2.root:/velocity");
-      dir->GetObject("Event",tree);
+      f->GetObject("velocity/Event",tree);
+
+#else // SINGLE_TREE
+
+      // The following code should be used if you want this class to access a chain
+      // of trees.
+      TChain * chain = new TChain("velocity/Event","");
+      chain->Add("/dune/data2/users/tianlel/reco/v08_32_01/combined.root/velocity/Event");
+      chain->Add("/dune/data/users/tianlel/reco/v08_32_01/combined2.root/velocity/Event");
+      tree = chain;
+#endif // SINGLE_TREE
 
    }
    Init(tree);
