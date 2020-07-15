@@ -9,7 +9,7 @@
 #include <TCanvas.h>
 
 using namespace std;
-
+    
 
 /********** constant variables ***********/
 
@@ -18,7 +18,7 @@ string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_Efield
 string output_file_name = "deltaT_distribution_per_YZbin_without_cut_ALLEVENTS.root";
 
 /* optional variables */
-Long64_t select_nentries = 1500000; // 0 -> use all nentries
+Long64_t select_nentries = 0; // 0 -> use all nentries
 int set_jentry = 0;
 int print_debug_message = 0;
 
@@ -208,17 +208,18 @@ void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
     }
 }
 
-void create_n_hists(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
+void create_n_hists_YZ(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
                     char name[], char hist_title[], char x_unit[], char y_unit[],
                     int x0, int x1, int nbinsX)
 {
+    int ybin = 0, zbin = 0;
     for (int i=0; i<n; i++)
     {
         hists_pos[i] = new TH1F(Form("%s_pos_%d", name, i),
-                            Form("%s (Beam Left); %s; %s", hist_title,
+                            Form("%s (Beam Left), Ybin %d, Zbin %d; %s; %s", hist_title,
                                  x_unit, y_unit), nbinsX, x0, x1);
         hists_neg[i] = new TH1F(Form("%s_neg_%d", name, i),
-                            Form("%s (Beam Right); %s; %s", hist_title, 
+                            Form("%s (Beam Right), Ybin %d, Zbin %d; %s; %s", hist_title, 
                                  x_unit, y_unit), nbinsX, x0, x1);
     }
 }
@@ -244,6 +245,12 @@ vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
 /* Given the Y ans Z bin numbers, return the corresponding 
  * distribution histogram number */
 int YZhist_num(int i, int j, int nbinsY, int nbinsZ) {return i*nbinsY + j;}
+
+/* Given histogram number, get ybin, zbin number */
+void getyzbin(int i, int *ybin, int *zbin)
+{
+    
+}
 
 /********* helper functions end *********/
 
@@ -288,7 +295,7 @@ void frame::Loop()
     TH1F *deltaT_YZ_hists[deltaT_YZ_hists_num], *deltaT_YZ_hists_neg[deltaT_YZ_hists_num];
     char deltaT_YZ_hist_name[] = "YZbin_deltaT_distribution_hist",
          deltaT_YZ_hist_title[] = "deltaT_total distribution (YZ plane bin)";
-    create_n_hists(deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
+    create_n_hists_YZ(deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
                    deltaT_YZ_hist_name, deltaT_YZ_hist_title, 
                    deltaT_hist_xunit, deltaT_hist_yunit,
                    nbinsT, deltaT_min, detector_Tmax); 
@@ -309,17 +316,12 @@ void frame::Loop()
     Long64_t nbytes = 0, nb = 0;
     for (Long64_t jentry=set_jentry; jentry<nentries;jentry++) // event loop
     {
-        cout<<"jentry start"<<endl;
-  
         Long64_t ientry = LoadTree(jentry);
-        cout<<ientry<<endl;
         if (ientry < 0) break;
-        print("fChain->GetEntry");
         nb = fChain->GetEntry(jentry);   nbytes += nb;
         if (jentry % 10000 == 0)
             std::cout << jentry << "/" << nentries << std::endl;
 
-        print("!trkhitz_wire2->size()");
         if(!trkhitz_wire2->size()) continue;
 
         if (print_debug_message) print("entering trk loop");
@@ -378,8 +380,10 @@ void frame::Loop()
                 }
                 else
                 {
-                    if (print_debug_message) print("push_back selected_tracks");
-                    selected_tracks.push_back(trk);
+                    int ybin = trk.cathode_hit().y / Ybinsize;
+                    int zbin = trk.cathode_hit().z / Zbinsize;
+                    if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
+                    deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(trk.deltaT_total());
                 }
             }
 
@@ -405,11 +409,13 @@ void frame::Loop()
                 }
                 else 
                 {
-                    if (print_debug_message) print("push_back selected_tracks_neg");
-
-                    selected_tracks_neg.push_back(trk);
+                    int ybin = trk.cathode_hit().y / Ybinsize;
+                    int zbin = trk.cathode_hit().z / Zbinsize;
+                    if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
+                    deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(trk.deltaT_total());
                 }
             }  
+
             if (print_debug_message) print("exiting trk loop");
         } // end of trk loop
     } // end of jentries loop
