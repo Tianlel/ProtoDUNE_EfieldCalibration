@@ -15,7 +15,7 @@ using namespace std;
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "deltaT_distribution_per_YZbin_without_cut_ALLEVENTS.root";
+string output_file_name = "ALLEVENTS_deltaT_distribution.root";
 
 /* optional variables */
 Long64_t select_nentries = 0; // 0 -> use all nentries
@@ -36,13 +36,15 @@ int Ybinsize = 20; // cm
 int Zbinsize = 20; // cm 
 int Tbinsize = 50; // ticks 
 
-int deltaT_min = 0; // ticks
+int YZ_deltaT_binsize = 2; // ticks
+int YZ_deltaT_min = 4000; // ticks
+int YZ_deltaT_max = 5000; // ticks
 
 /* detector parameters */
 int detector_Tmax = 6000; // ticks 
 
 int Ymin = 0, Ymax = 600; // cm
-int Zmin = 0, Zmax = 700; // cm
+int Zmin = -10, Zmax = 710; // cm
 
 /* frame parameters */
 vector<double> frame_Zpositions{0,120,230,345,465,575,695};
@@ -208,49 +210,36 @@ void create_n_hists(int n, TH2F *hists_pos[n], TH2F *hists_neg[n],
     }
 }
 
-void create_n_hists_YZ(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
+/* Given the Y and Z bin numbers, return the corresponding 
+ *  *  * distribution histogram number */
+int YZhist_num(int i, int j, int nbinsZ) {return i*nbinsZ + j;}
+
+/* Given histogram number, get ybin, zbin number, the lower limit of the bin range in y and z*/
+void getyzbin(int n, int *ybin, int *zbin, int nbinsZ, int *y_range_min, int *z_range_min)
+{
+    *ybin = n/nbinsZ;
+    *zbin = n%nbinsZ;
+    *y_range_min = (*ybin)*Ybinsize + Ymin;
+    *z_range_min = (*zbin)*Zbinsize + Zmin; 
+}
+
+void create_n_hists_YZ(int nbinsY, int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
                     char name[], char hist_title[], char x_unit[], char y_unit[],
                     int x0, int x1, int nbinsX)
 {
-    int ybin = 0, zbin = 0;
+    int ybin = 0, zbin = 0, y_range_min = 0, z_range_min = 0;
     for (int i=0; i<n; i++)
     {
+        getyzbin(i, &ybin, &zbin, nbinsY, &y_range_min, &z_range_min);
         hists_pos[i] = new TH1F(Form("%s_pos_%d", name, i),
-                            Form("%s (Beam Left), Ybin %d, Zbin %d; %s; %s", hist_title,
+                            Form("%s (Beam Left), Ybin %d (%d-%d), Zbin %d (%d-%d); %s; %s", hist_title, ybin, y_range_min, y_range_min+Ybinsize, zbin, z_range_min, z_range_min+Zbinsize,
                                  x_unit, y_unit), nbinsX, x0, x1);
         hists_neg[i] = new TH1F(Form("%s_neg_%d", name, i),
-                            Form("%s (Beam Right), Ybin %d, Zbin %d; %s; %s", hist_title, 
+                            Form("%s (Beam Right),  Ybin %d (%d-%d), Zbin %d (%d-%d); %s; %s", hist_title, ybin, y_range_min, y_range_min+Ybinsize, zbin, z_range_min, z_range_min+Zbinsize,
                                  x_unit, y_unit), nbinsX, x0, x1);
     }
 }
 
-/*** probably need to be deleted later
-vector<Hit> create_sorted_Hit_vector(vector<float> T, vector<float> y,
-                              vector<float> z, vector<int> tpc)
-{
-    int hits_count = T.size();
-    vector<Hit> hits;
-    hits.reserve(hits_count);
-
-    for (int i=0; i<hits_count; i++)
-    {
-        hits.push_back( Hit(T[i], y[i], z[i], 9999., tpc[i]) );
-    }
-    sort_hits_by_T(hits);
-
-    return hits;   
-}
-*/
-
-/* Given the Y ans Z bin numbers, return the corresponding 
- * distribution histogram number */
-int YZhist_num(int i, int j, int nbinsY, int nbinsZ) {return i*nbinsY + j;}
-
-/* Given histogram number, get ybin, zbin number */
-void getyzbin(int i, int *ybin, int *zbin)
-{
-    
-}
 
 /********* helper functions end *********/
 
@@ -270,7 +259,8 @@ void frame::Loop()
 
     /****** histogram definition ******/
 
-    int nbinsT = detector_Tmax / Tbinsize; 
+    int nbinsT_YZ = (YZ_deltaT_max - YZ_deltaT_min) / YZ_deltaT_binsize; 
+    cout<<"number of YZ_bins in deltaT: "<< nbinsT_YZ<<endl;
     char deltaT_hist_xunit[] = "deltaT_total (ticks)", deltaT_hist_yunit[] = "number of hits";
 
     /* for plotting deltaT vs Zframe (to get bounds for cathode-anode crosser cut) */
@@ -286,19 +276,20 @@ void frame::Loop()
    create_n_hists(deltaT_zframe_hists_num, deltaT_zframe_hists, deltaT_zframe_hists_neg,
                   deltaT_zframe_hists_names, deltaT_zframe_hists_titles,
                   deltaT_hist_xunit, deltaT_hist_yunit,
-                  nbinsT, deltaT_min, detector_Tmax);
+                  nbinsT_YZ, YZ_deltaT_min, YZ_deltaT_max);
 
 
     /* for plotting deltaT vs YZ plane */
-    int nbinsY = Ymax / Ybinsize, nbinsZ = Zmax / Zbinsize;
+    int nbinsY = Ymax / Ybinsize, nbinsZ = (Zmax - Zmin) / Zbinsize;
     int deltaT_YZ_hists_num = nbinsY * nbinsZ;
+    if (print_debug_message) cout<<"deltaT_YZ_hists_num = "<<deltaT_YZ_hists_num<<endl;
     TH1F *deltaT_YZ_hists[deltaT_YZ_hists_num], *deltaT_YZ_hists_neg[deltaT_YZ_hists_num];
     char deltaT_YZ_hist_name[] = "YZbin_deltaT_distribution_hist",
          deltaT_YZ_hist_title[] = "deltaT_total distribution (YZ plane bin)";
-    create_n_hists_YZ(deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
+    create_n_hists_YZ(nbinsY, deltaT_YZ_hists_num, deltaT_YZ_hists, deltaT_YZ_hists_neg,
                    deltaT_YZ_hist_name, deltaT_YZ_hist_title, 
                    deltaT_hist_xunit, deltaT_hist_yunit,
-                   nbinsT, deltaT_min, detector_Tmax); 
+                   YZ_deltaT_min, YZ_deltaT_max, nbinsT_YZ);
     /* for plotting deltaT vs YZ plane end*/
 
     /* for plotting deltaT_med vs YZ plane */
@@ -381,15 +372,17 @@ void frame::Loop()
                 else
                 {
                     int ybin = trk.cathode_hit().y / Ybinsize;
-                    int zbin = trk.cathode_hit().z / Zbinsize;
-                    if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
-                    deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(trk.deltaT_total());
+                    int zbin = (trk.cathode_hit().z - Zmin) / Zbinsize;
+                    if (ybin < 0 || ybin >= nbinsY || zbin < 0 || zbin >= nbinsZ) continue;
+                    if (print_debug_message) print("Fill deltaT_YZ hist");
+                    if (print_debug_message) cout<<"YZhist_num is "<<YZhist_num(ybin,zbin,nbinsZ)<<endl;
+                    deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsZ)]->Fill(trk.deltaT_total());
                 }
             }
 
             if (hits_neg.size() > hits_size_min)
             {
-                if (print_debug_message) print("create track object");
+                if (print_debug_message) print("create track object (neg)");
                 // create Track object
                 Track trk = Track(hits_neg);
                 trk.sort_by_T();
@@ -410,9 +403,10 @@ void frame::Loop()
                 else 
                 {
                     int ybin = trk.cathode_hit().y / Ybinsize;
-                    int zbin = trk.cathode_hit().z / Zbinsize;
-                    if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
-                    deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(trk.deltaT_total());
+                    int zbin = (trk.cathode_hit().z - Zmin) / Zbinsize;
+                    if (ybin < 0 || ybin >= nbinsY || zbin < 0 || zbin >= nbinsZ) continue;
+                    if (print_debug_message) print("Fill deltaT_YZ hist");
+                    deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsZ)]->Fill(trk.deltaT_total());
                 }
             }  
 
@@ -426,7 +420,7 @@ void frame::Loop()
         int ybin = selected_tracks[i].cathode_hit().y / Ybinsize;
         int zbin = selected_tracks[i].cathode_hit().z / Zbinsize;
         if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
-        deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks[i].deltaT_total());  
+        deltaT_YZ_hists[YZhist_num(ybin,zbin,nbinsZ)]->Fill(selected_tracks[i].deltaT_total());  
 
     }
 
@@ -435,18 +429,18 @@ void frame::Loop()
         int ybin = selected_tracks_neg[i].cathode_hit().y / Ybinsize;
         int zbin = selected_tracks_neg[i].cathode_hit().z / Zbinsize;
         if (ybin < 0 || ybin > nbinsY || zbin < 0 || zbin > nbinsZ) continue;
-        deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsY,nbinsZ)]->Fill(selected_tracks_neg[i].deltaT_total());
+        deltaT_YZ_hists_neg[YZhist_num(ybin,zbin,nbinsZ)]->Fill(selected_tracks_neg[i].deltaT_total());
     }   
 
     for (int i=0; i<nbinsY; i++) 
     {
         for (int j=0; j<nbinsZ; j++) 
         {
-            float bin_deltaT_med = (float) get_hist_med(deltaT_YZ_hists[YZhist_num(i,j,nbinsY,nbinsZ)]);
+            float bin_deltaT_med = (float) get_hist_med(deltaT_YZ_hists[YZhist_num(i,j,nbinsZ)]);
             if (bin_deltaT_med == 0) continue;
             deltaT_YZ_h2->SetBinContent(i+1,j+1,bin_deltaT_med);
 
-            float bin_deltaT_med_neg = (float) get_hist_med(deltaT_YZ_hists_neg[YZhist_num(i,j,nbinsY,nbinsZ)]);
+            float bin_deltaT_med_neg = (float) get_hist_med(deltaT_YZ_hists_neg[YZhist_num(i,j,nbinsZ)]);
             if (bin_deltaT_med_neg == 0) continue;
             deltaT_YZ_h2_neg->SetBinContent(i+1,j+1,bin_deltaT_med_neg);
         }
