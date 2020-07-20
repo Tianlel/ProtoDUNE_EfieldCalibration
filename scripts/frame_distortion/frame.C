@@ -15,7 +15,7 @@ using namespace std;
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "ALLEVENTS_deltaT.root";
+string output_file_name = "ALLEVENTS_deltaT_with_contraction_corr.root";
 
 /* optional variables */
 Long64_t select_nentries = 0; // 0 -> use all nentries
@@ -27,7 +27,7 @@ int hits_size_min = 5;
 int CA_crossing_cut = 0;
 
 int YZ_deltaT_getmed_lowerbound = 4580; // find peak after this threshold
-int YZ_deltaT_entries_min = 500; // minimum number of entries to perform getmedian function
+int YZ_deltaT_entries_min = 1000; // minimum number of entries to perform getmedian function
 
 // deltaT cut for cathode-anode crosser selection
 int Tcut_mid[6][2] = { {4595, 4605}, {4595, 4607}, {4593, 4608},
