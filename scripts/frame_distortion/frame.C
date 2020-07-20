@@ -15,10 +15,10 @@ using namespace std;
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "testALLEVENTS.root";
+string output_file_name = "ALLEVENTS_deltaT.root";
 
 /* optional variables */
-Long64_t select_nentries = 100000; // 0 -> use all nentries
+Long64_t select_nentries = 0; // 0 -> use all nentries
 int set_jentry = 0;
 int print_debug_message = 0;
 
@@ -27,6 +27,7 @@ int hits_size_min = 5;
 int CA_crossing_cut = 0;
 
 int YZ_deltaT_getmed_lowerbound = 4580; // find peak after this threshold
+int YZ_deltaT_entries_min = 500; // minimum number of entries to perform getmedian function
 
 // deltaT cut for cathode-anode crosser selection
 int Tcut_mid[6][2] = { {4595, 4605}, {4595, 4607}, {4593, 4608},
@@ -138,6 +139,22 @@ void Track::print(int verbose){
 
 /********* helper functions *********/
 void print(string message) { cout<<message<<endl;}
+
+/*** Applying thermal contraction to Y and Z values (by Ajib) ***/
+double Zp[6]={0.575,230.112,232.635,462.172,464.695,694.232};
+double Zn[6]={0.560,230.097,232.620,462.157,464.68,694.217};
+
+double zthermal(double z, int tpcno){
+    if(tpcno==1||tpcno==5||tpcno==9)
+        return z+((Zn[(tpcno-1)/2]+Zn[(tpcno-1)/2+1])/2.0-z)*2.7e-3;
+    if(tpcno==2||tpcno==6||tpcno==10)
+        return z+((Zp[(tpcno-2)/2]+Zp[(tpcno-2)/2+1])/2.0-z)*2.7e-3;
+    return -1;
+}
+double ythermal(double y){
+  return y+(606.93-y)*2.7e-3;
+}
+/******/
 
 int get_frame_tag(int z)
 {
@@ -334,8 +351,8 @@ void frame::Loop()
                 {
                     int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
                     hits.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
-                                        trkhity2->at(i)[j],
-                                        trkhitz_wire2->at(i)[j],
+                                        ythermal(trkhity2->at(i)[j]),
+                                        zthermal(trkhitz_wire2->at(i)[j], hit_tpc2->at(i)[j]),
                                         9999.,hit_tpc2->at(i)[j],
                                         frame_tag));  
                 }
@@ -344,8 +361,8 @@ void frame::Loop()
                 {
                     int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
                     hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
-                                        trkhity2->at(i)[j],
-                                        trkhitz_wire2->at(i)[j],
+                                        ythermal(trkhity2->at(i)[j]),
+                                        zthermal(trkhitz_wire2->at(i)[j],hit_tpc2->at(i)[j]),
                                         -9999.,hit_tpc2->at(i)[j],
                                         frame_tag));
                 }
