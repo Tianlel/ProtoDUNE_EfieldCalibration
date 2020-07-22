@@ -59,7 +59,6 @@ void plot_med_deltaT()
     TH2F *deltaT_YZ_h2 = new TH2F("deltaT_YZ_h2","deltaT vs YZ bin (beam left); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
     TH2F *deltaT_YZ_h2_neg = new TH2F("deltaT_YZ_h2_neg","deltaT vs YZ bin (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
 
-    TCanvas *c1 = new TCanvas("c1", "c1", 4000, 4000);
     TH1F *h;
 
     for (int i=0; i<nbinsZ; i++)
@@ -95,8 +94,13 @@ void plot_med_deltaT()
         }
     }
 
+    TCanvas *c1 = new TCanvas("c1", "c1", 4000, 4000);
     deltaT_YZ_h2->SetMarkerSize(0.7);
-    //deltaT_YZ_h2->Draw("COLZ TEXT");
-    deltaT_YZ_h2->SaveAs(save_name+".png");
-    deltaT_YZ_h2_neg->SaveAs(save_name+"_neg.png");
+    deltaT_YZ_h2->Draw("COLZ TEXT");
+    c1->SaveAs(save_name+".png");
+
+    TCanvas *c2 = new TCanvas("c2", "c2", 4000, 4000);
+    deltaT_YZ_h2_neg->SetMarkerSize(0.7);
+    deltaT_YZ_h2_neg->Draw("COLZ TEXT");
+    c2->SaveAs(save_name+"_neg.png");
 }
