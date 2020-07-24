@@ -12,136 +12,14 @@
 using namespace std;
     
 
-/********** constant variables ***********/
-
-/* output file */
-string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "ALLEVENTS_deltaT_with_contraction_corr.root";
-
-/* optional variables */
-Long64_t select_nentries = 0; // 0 -> use all nentries
-int set_jentry = 0;
-int print_debug_message = 0;
-
-/* cut parameters */
-int hits_size_min = 5; 
-int CA_crossing_cut = 0;
-
-int YZ_deltaT_getmed_lowerbound = 4580; // find peak after this threshold
-int YZ_deltaT_entries_min = 1000; // minimum number of entries to perform getmedian function
-
-// deltaT cut for cathode-anode crosser selection
-int Tcut_mid[6][2] = { {4595, 4605}, {4595, 4607}, {4593, 4608},
-                       {4587, 4609}, {4601, 4594}, {4595, 4602} };
-int Tcut_margin = 10; // ticks
-
-/* histogram parameters */
-int Ybinsize = 20; // cm
-int Zbinsize = 20; // cm 
-int Tbinsize = 50; // ticks 
-
-int YZ_deltaT_binsize = 2; // ticks
-int YZ_deltaT_min = 4000; // ticks
-int YZ_deltaT_max = 5000; // ticks
-
-/* detector parameters */
-int detector_Tmax = 6000; // ticks 
-
-int Ymin = 0, Ymax = 600; // cm
-int Zmin = -10, Zmax = 710; // cm
-
-/* frame parameters */
-vector<double> frame_Zpositions{0,120,230,345,465,575,695};
-
-/* tpc number (LArSoft numbering) */
-int tpc_left_front = 2, tpc_left_mid = 6, tpc_left_back = 10;
-int tpc_right_front = 1, tpc_right_mid = 5, tpc_right_back = 9;
-
-/********** constant variables end ***********/
-
-/********* struct definition *********/
-struct Hit {
-    float peakT;
-    float deltaT_local;
-    float deltaT_total;
-    float y;
-    float z;
-    float x_calculated;
-    int tpc;
-    int frame_tag; // 0: [0,120); 1: [120,230); ...; 5: [575,695)
-
-    /*** constructors ***/
-    Hit() : peakT( 0.0f ), deltaT_local( 0.0f ),
-            y( 0.0f ), z( 0.0f ), x_calculated( 0.0f ),
-            tpc( 0 ), frame_tag( 0 ) {}
-    Hit( float peakTIn, float deltaT_localIn, float deltaT_totalIn, float yIn, float zIn, float x_calcIn, int tpcIn, int frame_tagIn) :
-        peakT( peakTIn ), deltaT_total( deltaT_totalIn ), deltaT_local( deltaT_localIn ), 
-            y( yIn ), z( zIn ), x_calculated( x_calcIn ), 
-            tpc( tpcIn ), frame_tag( frame_tagIn ) {}
-
-    /*** member functions ***/
-    void print(int verbose);
-};
-
-// print 
-void Hit::print(int verbose){
-    if (verbose == 0)
-        cout<<"x_calc = "<<x_calculated<<", y = "<<y<<", z = "<<z<<endl;
-
-    if (verbose == 1)
-        cout<<"x_calc = "<<x_calculated<<", y = "<<y<<", z = "<<z
-        <<", deltaT_total = "<<deltaT_total<<endl;
-
-    if (verbose == 5)
-        cout<<"peakT = "<<peakT<<", deltaT_total = "<<deltaT_total
-        <<", deltaT_local = "<<deltaT_local
-        <<", x_calc = "<<x_calculated
-        <<", y = "<<y<<", z = "<<z<<", tpc = "<<tpc<<endl;
-}
-
-struct Track { 
-    vector<Hit> hits; 
-
-    /*** constructor ***/
-    Track(vector<Hit> hs): hits(hs) {}
-
-    /*** member functions ***/
-    // only to be used after the hits are sorted based on peakT
-    float Tmin() {return hits[0].peakT;};
-    int size() {return hits.size();};
-    int deltaT_total() {return hits[hits.size()-1].peakT - hits[0].peakT;};
-    Hit cathode_hit() {return hits[hits.size()-1];};
-    int get_cathode_frame_tag() {return hits[hits.size()-1].frame_tag;};
-    void sort_by_T();
-    void set_deltaT_local(float Tmin);
-    void print(int verbose);
-};
-
-void Track::sort_by_T(){
-    sort(hits.begin(), hits.end(), [&](const auto& hit1, const auto& hit2)
-    {
-        return hit1.peakT < hit2.peakT;
-    });
-}
-
-void Track::set_deltaT_local(float Tmin){
-    for (int i=0; i<hits.size(); i++){
-        hits[i].deltaT_local = hits[i].peakT - Tmin;       
-    }   
-}
-
-void Track::print(int verbose){
-    for (int i=0; i<hits.size(); i++){
-        hits[i].Hit::print(verbose);
-    }
-}
-
-/********* struct definition end *********/
-
 void frame::Loop()
 {
     string output = output_PATH + output_file_name;
     TFile *file = new TFile(output.c_str(), "recreate");
+    TFile * froot = new TFile(input_file_name.c_str(), "READ");
+    vector<float> *Tmed, *Tmed_neg;
+    froot->GetObject("med_vals", Tmed);
+    froot->GetObject("med_vals_neg", Tmed_neg);
 
     /*** vector declaration ***/
     vector<Float_t> hitpeakT_buffer, hity_buffer, hitz_buffer;
@@ -150,6 +28,7 @@ void frame::Loop()
     vector<Int_t> hittpc_buffer_neg, hitwire_buffer_neg;
 
     vector<Track> selected_tracks, selected_tracks_neg; 
+
 
     /****** histogram definition ******/
 
@@ -175,6 +54,9 @@ void frame::Loop()
 
     /* for plotting deltaT vs YZ plane */
     int nbinsY = Ymax / Ybinsize, nbinsZ = (Zmax - Zmin) / Zbinsize;
+    int histnum_tot = (nbinsY + 1) * (nbinsZ + 1);
+    vector<vector<float>> peak_vals, peak_vals_neg;
+    peak_vals.resize(histnum_tot); peak_vals_neg.resize(histnum_tot);
     int deltaT_YZ_hists_num = nbinsY * nbinsZ;
     if (print_debug_message) cout<<"deltaT_YZ_hists_num = "<<deltaT_YZ_hists_num<<endl;
     TH1F *deltaT_YZ_hists[deltaT_YZ_hists_num], *deltaT_YZ_hists_neg[deltaT_YZ_hists_num];
@@ -271,6 +153,7 @@ void frame::Loop()
                     if (print_debug_message) print("Fill deltaT_YZ hist");
                     if (print_debug_message) cout<<"YZhist_num is "<<YZhist_num(ybin,zbin,nbinsZ)<<endl;
                     deltaT_YZ_hists[YZhist_num(zbin,ybin,nbinsY)]->Fill(trk.deltaT_total());
+                    fill_deltaT_vec(trk.deltaT_total(), Tcut_margin, zbin, ybin, Tmed, peak_vals);
                 }
             }
 
@@ -301,6 +184,7 @@ void frame::Loop()
                     if (ybin < 0 || ybin >= nbinsY || zbin < 0 || zbin >= nbinsZ) continue;
                     if (print_debug_message) print("Fill deltaT_YZ hist");
                     deltaT_YZ_hists_neg[YZhist_num(zbin,ybin,nbinsY)]->Fill(trk.deltaT_total());
+                    fill_deltaT_vec(trk.deltaT_total(), Tcut_margin, zbin, ybin, Tmed_neg, peak_vals_neg);
                 }
             }  
 
@@ -340,17 +224,17 @@ void frame::Loop()
         }
     }
        
-  /* for (int i=0; i<deltaT_YZ_hists_num; i++)
+    for (int i=0; i<deltaT_YZ_hists_num; i++)
     {
         deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
     }
 
-    deltaT_YZ_h2->Write(); deltaT_YZ_h2_neg->Write(); */
+    deltaT_YZ_h2->Write(); deltaT_YZ_h2_neg->Write();
 
-/*    for (int i=0; i<deltaT_zframe_hists_num; i++) {
+    for (int i=0; i<deltaT_zframe_hists_num; i++) {
         deltaT_zframe_hists[i]->Write(); deltaT_zframe_hists_neg[i]->Write();
     }
-*/
+
 
     cout<<"selected_trk_count_pos = "<<selected_tracks.size()<<endl
         <<"selected_trk_count_neg = "<<selected_tracks_neg.size()<<endl;
