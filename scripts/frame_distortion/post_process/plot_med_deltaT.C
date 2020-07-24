@@ -35,12 +35,18 @@ int Zmin = -10, Zmax = 710; // cm
 void plot_med_deltaT()
 {
     string PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
-    string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots";
+    string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots/";
+    string OUTPUT_TREE_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
     TString save_name = TString::Format("%sdeltaT_med_TH2", OUTPUT_PATH.c_str());
-    
-    TFile *f = TFile::Open("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/ALLEVENTS_deltaT_with_contraction_corr.root");
+    TString save_name_tree = TString::Format("%s", OUTPUT_TREE_PATH.c_str()); 
 
-   TStyle *st = new TStyle("Modern","my style");
+    
+    TFile *f = TFile::Open("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/ALLEVENTS_deltaT_with_contraction_corr.root", "READ");
+    TFile *froot = TFile::Open(save_name_tree + "deltaTmed.root", "RECREATE");
+
+    vector<float> med_vals, med_vals_neg;
+
+    TStyle *st = new TStyle("Modern","my style");
     st->SetPadGridX(1);
     st->SetPadGridY(1);
     st->cd();
@@ -67,7 +73,11 @@ void plot_med_deltaT()
         {
             //cout<<Form("deltaT_pos_%d_%d", i, j)<<endl;
             f->GetObject(Form("deltaT_pos_%d_%d", i, j), h);
-            if (h->GetEntries() < nentries_min) continue;
+            if (h->GetEntries() < nentries_min)
+            {
+                med_vals.push_back(-1);
+                continue;
+            }
             h->GetXaxis()->SetRangeUser(deltaT_min, deltaT_max);
             int maxbin = h->GetMaximumBin();
             int maxbin_T = YZ_deltaT_min + Tbinsize*(maxbin-1);
@@ -76,24 +86,35 @@ void plot_med_deltaT()
             int deltaT_med = (int)get_hist_med(h, maxbin, deltaT_margin/Tbinsize, &Tlow, &Thigh);
             //cout<<maxbin_T<<"T_med: "<<deltaT_med<<endl;
             //cout<<"Tlow: "<<Tlow<<" Thigh:"<<Thigh<<endl;
-            deltaT_YZ_h2->GetZaxis()->SetRangeUser(4578,4610);
+            /*deltaT_YZ_h2->GetZaxis()->SetRangeUser(4578,4610);
             deltaT_YZ_h2->SetBinContent(i+1,j+1,deltaT_med);
-            deltaT_YZ_h2->SetBinError(i+1,j+1,(Thigh-Tlow)/2);
-    
-            f->GetObject(Form("deltaT_neg_%d_%d", i, j), h);
-            if (h->GetEntries() < nentries_min) continue;
-            h->GetXaxis()->SetRangeUser(deltaT_min, deltaT_max);
-            maxbin = h->GetMaximumBin();
-            maxbin_T = YZ_deltaT_min + Tbinsize*(maxbin-1);
-            deltaT_med = (int)get_hist_med(h, maxbin, deltaT_margin/Tbinsize, &Tlow, &Thigh);
-            deltaT_YZ_h2_neg->GetZaxis()->SetRangeUser(4578,4610);
-            deltaT_YZ_h2_neg->SetBinContent(i+1,j+1,deltaT_med);
-            deltaT_YZ_h2_neg->SetBinError(i+1,j+1,(Thigh-Tlow)/2);
-
-
+            deltaT_YZ_h2->SetBinError(i+1,j+1,(Thigh-Tlow)/2);*/
+            med_vals.push_back(deltaT_med);
         }
     }
 
+    for (int i=0; i<nbinsZ; i++)
+    {
+        for (int j=0; j<nbinsY; j++)
+        {
+            f->GetObject(Form("deltaT_neg_%d_%d", i, j), h);
+            if (h->GetEntries() < nentries_min)
+            {
+               med_vals_neg.push_back(-1);
+               continue;
+            }
+            h->GetXaxis()->SetRangeUser(deltaT_min, deltaT_max);
+            int maxbin = h->GetMaximumBin();
+            int maxbin_T = YZ_deltaT_min + Tbinsize*(maxbin-1);
+            double Tlow = 0, Thigh = 0;       
+            int deltaT_med = (int)get_hist_med(h, maxbin, deltaT_margin/Tbinsize, &Tlow, &Thigh);
+           /* int deltaT_YZ_h2_neg->GetZaxis()->SetRangeUser(4578,4610);
+            int deltaT_YZ_h2_neg->SetBinContent(i+1,j+1,deltaT_med);
+            int deltaT_YZ_h2_neg->SetBinError(i+1,j+1,(Thigh-Tlow)/2); */
+            med_vals_neg.push_back(deltaT_med);
+        }
+    }
+/*
     TCanvas *c1 = new TCanvas("c1", "c1", 4000, 4000);
     deltaT_YZ_h2->SetMarkerSize(0.7);
     deltaT_YZ_h2->Draw("COLZ TEXT");
@@ -103,4 +124,9 @@ void plot_med_deltaT()
     deltaT_YZ_h2_neg->SetMarkerSize(0.7);
     deltaT_YZ_h2_neg->Draw("COLZ TEXT");
     c2->SaveAs(save_name+"_neg.png");
+*/
+
+    froot->WriteObject(&med_vals, "med_vals");
+    froot->WriteObject(&med_vals_neg, "med_vals_neg");
+    froot->Write();
 }
