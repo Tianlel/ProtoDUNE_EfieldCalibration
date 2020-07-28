@@ -1,5 +1,5 @@
-/* 
- * Author: Tianle Liu 
+
+/* Author: Tianle Liu 
  */
 
 #define frame_cxx
@@ -10,13 +10,35 @@
 #include "frame_func.h"
 
 using namespace std;
-    
+   
+/* inut file */
+string input_file_name = "deltaTmed.root";
+
+/* output file */
+string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
+string output_file_name = "test.root";
+
+/* optional variables */
+Long64_t select_nentries = 100000; // 0 -> use all nentries
+int set_jentry = 0;
+int print_debug_message = 0;
+
+/* cut parameters */
+int hits_size_min = 5;
+int CA_crossing_cut = 0;
+int med_min_hits_num = 5;
+
+int YZ_deltaT_getmed_lowerbound = 4580; // find peak after this threshold
+int YZ_deltaT_entries_min = 1000; // min 
+
+/* purpose of analysis */
+int get_deltaT_distribution_before_cut = 0;
 
 void frame::Loop()
 {
     string output = output_PATH + output_file_name;
+    TFile * froot = TFile::Open(input_file_name.c_str(), "READ");
     TFile *file = new TFile(output.c_str(), "recreate");
-    TFile * froot = new TFile(input_file_name.c_str(), "READ");
     vector<float> *Tmed, *Tmed_neg;
     froot->GetObject("med_vals", Tmed);
     froot->GetObject("med_vals_neg", Tmed_neg);
@@ -55,7 +77,7 @@ void frame::Loop()
     /* for plotting deltaT vs YZ plane */
     int nbinsY = Ymax / Ybinsize, nbinsZ = (Zmax - Zmin) / Zbinsize;
     int histnum_tot = (nbinsY + 1) * (nbinsZ + 1);
-    vector<vector<float>> peak_vals, peak_vals_neg;
+    vector<vector<double>> peak_vals, peak_vals_neg;
     peak_vals.resize(histnum_tot); peak_vals_neg.resize(histnum_tot);
     int deltaT_YZ_hists_num = nbinsY * nbinsZ;
     if (print_debug_message) cout<<"deltaT_YZ_hists_num = "<<deltaT_YZ_hists_num<<endl;
@@ -69,8 +91,13 @@ void frame::Loop()
     /* for plotting deltaT vs YZ plane end*/
 
     /* for plotting deltaT_med vs YZ plane */
-    TH2F *deltaT_YZ_h2 = new TH2F("deltaT_YZ_h2","deltaT vs YZ bin (beam left); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
-    TH2F *deltaT_YZ_h2_neg = new TH2F("deltaT_YZ_h2_neg","deltaT vs YZ bin (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *deltaT_YZ_h2_err0 = new TH2F("deltaT_YZ_h2_err0","deltaT vs YZ bin (beam left); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *deltaT_YZ_h2_err0_neg = new TH2F("deltaT_YZ_h2_err0_neg","deltaT vs YZ bin (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *deltaT_YZ_h2_err1 = new TH2F("deltaT_YZ_h2_err1","deltaT vs YZ bin (beam left); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *deltaT_YZ_h2_err1_neg = new TH2F("deltaT_YZ_h2_err1_neg","deltaT vs YZ bin (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *deltaT_YZ_h2_err2 = new TH2F("deltaT_YZ_h2_err2","deltaT vs YZ bin (beam left); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *deltaT_YZ_h2_err2_neg = new TH2F("deltaT_YZ_h2_err2_neg","deltaT vs YZ bin (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+
 
 
     /****** histogram definition ******/
@@ -153,6 +180,7 @@ void frame::Loop()
                     if (print_debug_message) print("Fill deltaT_YZ hist");
                     if (print_debug_message) cout<<"YZhist_num is "<<YZhist_num(ybin,zbin,nbinsZ)<<endl;
                     deltaT_YZ_hists[YZhist_num(zbin,ybin,nbinsY)]->Fill(trk.deltaT_total());
+                    if (print_debug_message) cout<<"Find Tmed"<<endl;
                     fill_deltaT_vec(trk.deltaT_total(), Tcut_margin, zbin, ybin, Tmed, peak_vals);
                 }
             }
@@ -201,7 +229,6 @@ void frame::Loop()
         deltaT_YZ_hists[YZhist_num(zbin,ybin,nbinsY)]->Fill(selected_tracks[i].deltaT_total());  
 
     }
-
     for (int i=0; i<selected_tracks_neg.size(); i++)
     {   
         int ybin = selected_tracks_neg[i].cathode_hit().y / Ybinsize;
@@ -214,13 +241,33 @@ void frame::Loop()
     {
         for (int j=0; j<nbinsY; j++) 
         {
-            float bin_deltaT_med = (float) get_hist_med(deltaT_YZ_hists[YZhist_num(i,j,nbinsY)]);
-            if (bin_deltaT_med == 0) continue;
-            deltaT_YZ_h2->SetBinContent(i+1,j+1,bin_deltaT_med);
+            int binnum = YZhist_num(i,j,nbinsY);
+            if (peak_vals[binnum].size() < med_min_hits_num) continue;
+            float Tmed, Terr_up, Terr_down;
+            get_vec_med_err(peak_vals[binnum], &Tmed, &Terr_up, &Terr_down);
+            deltaT_YZ_h2_err0->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err0->SetBinError(i+1,j+1,(Terr_up+Terr_down)/2);
+            deltaT_YZ_h2_err1->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err1->SetBinError(i+1,j+1,Terr_up);
+            deltaT_YZ_h2_err2->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err2->SetBinError(i+1,j+1,Terr_down);
+        }
+    }
 
-            float bin_deltaT_med_neg = (float) get_hist_med(deltaT_YZ_hists_neg[YZhist_num(i,j,nbinsY)]);
-            if (bin_deltaT_med_neg == 0) continue;
-            deltaT_YZ_h2_neg->SetBinContent(i+1,j+1,bin_deltaT_med_neg);
+    for (int i=0; i<nbinsZ; i++)
+    {
+        for (int j=0; j<nbinsY; j++)
+        {
+            int binnum = YZhist_num(i,j,nbinsY);
+            if (peak_vals_neg[binnum].size() < med_min_hits_num) continue;
+            float Tmed, Terr_up, Terr_down;
+            get_vec_med_err(peak_vals_neg[binnum], &Tmed, &Terr_up, &Terr_down);
+            deltaT_YZ_h2_err0_neg->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err0_neg->SetBinError(i+1,j+1,(Terr_up+Terr_down)/2);
+            deltaT_YZ_h2_err1_neg->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err1_neg->SetBinError(i+1,j+1,Terr_up);
+            deltaT_YZ_h2_err2_neg->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err2_neg->SetBinError(i+1,j+1,Terr_down);
         }
     }
        
@@ -229,7 +276,10 @@ void frame::Loop()
         deltaT_YZ_hists[i]->Write(); deltaT_YZ_hists_neg[i]->Write();
     }
 
-    deltaT_YZ_h2->Write(); deltaT_YZ_h2_neg->Write();
+    deltaT_YZ_h2_err0->Write(); deltaT_YZ_h2_err0_neg->Write();
+    //deltaT_YZ_h2_err0->Draw("COLZ TEXT");
+    deltaT_YZ_h2_err1->Write(); deltaT_YZ_h2_err1_neg->Write();
+    deltaT_YZ_h2_err2->Write(); deltaT_YZ_h2_err2_neg->Write();
 
     for (int i=0; i<deltaT_zframe_hists_num; i++) {
         deltaT_zframe_hists[i]->Write(); deltaT_zframe_hists_neg[i]->Write();
