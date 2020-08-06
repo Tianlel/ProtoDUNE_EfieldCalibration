@@ -14,7 +14,7 @@ void exam_TH1_distribution()
     gStyle->SetOptStat(0);
 
     TH1F *h; 
-    f->GetObject("deltaT_pos_32_1", h);
+    f->GetObject("deltaT_neg_14_28", h);
     h->Draw();
     
 }
