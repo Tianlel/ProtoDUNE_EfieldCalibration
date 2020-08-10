@@ -128,27 +128,27 @@ void plot_med_deltaT_02()
                    deltaTY_xunit, deltaTY_yunit,
                    0, Ymax, nbinsY);
 
-    float a, b, c;
+    float val, yval, zval;
     for (int i=0; i<nbinsZ; i++)
     {
         for (int j=0; j<nbinsY; j++)   
         {
-            a = out->GetBinContent(i+1,j+1);
-            b = out->GetXaxis()->GetBinCenter(i+1);
-            c = out->GetYaxis()->GetBinCenter(j+1);
+            val = out->GetBinContent(i+1,j+1);
+            zval = out->GetXaxis()->GetBinCenter(i+1);
+            yval = out->GetYaxis()->GetBinCenter(j+1);
             
             //cout<<"a: "<<a<<" b: "<<b<<" c: "<<c<<endl;
 
-            deltaTY[i]->Fill(c,a);
-            deltaTZ[j]->Fill(b,a);
+            deltaTY[i]->Fill(yval,val);
+            deltaTZ[j]->Fill(zval,val);
             if (i==10 && j == 20) deltaTZ[i]->Draw("hist");
 
-            a = out_neg->GetBinContent(i+1,j+1);
-            b = out_neg->GetXaxis()->GetBinCenter(i+1);
-            c = out_neg->GetYaxis()->GetBinCenter(j+1);
+            val = out_neg->GetBinContent(i+1,j+1);
+            zval = out_neg->GetXaxis()->GetBinCenter(i+1);
+            yval = out_neg->GetYaxis()->GetBinCenter(j+1);
             
-            deltaTY_neg[i]->Fill(c,a);
-            deltaTZ_neg[j]->Fill(b,a);
+            deltaTY_neg[i]->Fill(yval,val);
+            deltaTZ_neg[j]->Fill(zval,val);
         }
     }
 /*

@@ -16,10 +16,10 @@ string input_file_name = "deltaTmed.root";
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "test.root";
+string output_file_name = "deltaTvsZ.root";
 
 /* optional variables */
-Long64_t select_nentries = 100000; // 0 -> use all nentries
+Long64_t select_nentries = 0; // 0 -> use all nentries
 int set_jentry = 0;
 int print_debug_message = 0;
 
@@ -99,6 +99,15 @@ void frame::Loop()
     TH2F *deltaT_YZ_h2_err2_neg = new TH2F("deltaT_YZ_h2_err2_neg","deltaT vs YZ bin (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
 
 
+    /* deltaT vs Z for each bin */
+/*    TH1F *deltaTZ[deltaT_YZ_hists_num], *deltaTZ_neg[deltaT_YZ_hists_num];
+    char deltaTZ_name[] = "deltaTZ",
+         deltaTZ_title[] = "deltaT vs Z";
+    char deltaTZ_xunit[] = "", deltaTZ_yunit[] = "number of hits";
+    create_n_hists_YZ(nbinsY, deltaT_YZ_hists_num, deltaTZ, deltaTZ_neg,
+                   deltaTZ_name, deltaTZ_title,
+                   deltaTZ_xunit, deltaTZ_yunit,
+                   YZ_deltaT_min, YZ_deltaT_max, nbinsT_YZ); */
 
     /****** histogram definition ******/
 
@@ -180,7 +189,7 @@ void frame::Loop()
                     if (print_debug_message) print("Fill deltaT_YZ hist");
                     if (print_debug_message) cout<<"YZhist_num is "<<YZhist_num(ybin,zbin,nbinsZ)<<endl;
                     deltaT_YZ_hists[YZhist_num(zbin,ybin,nbinsY)]->Fill(trk.deltaT_total());
-                    if (print_debug_message) cout<<"Find Tmed"<<endl;
+                    if (print_debug_message) cout<<"Fill deltaT vector"<<endl;
                     fill_deltaT_vec(trk.deltaT_total(), Tcut_margin, zbin, ybin, Tmed, peak_vals);
                 }
             }
@@ -243,13 +252,15 @@ void frame::Loop()
         {
             int binnum = YZhist_num(i,j,nbinsY);
             if (peak_vals[binnum].size() < med_min_hits_num) continue;
-            float Tmed, Terr_up, Terr_down;
-            get_vec_med_err(peak_vals[binnum], &Tmed, &Terr_up, &Terr_down);
-            deltaT_YZ_h2_err0->SetBinContent(i+1,j+1,Tmed);
+            float Tmedval, Terr_up, Terr_down;
+            get_vec_med_err(peak_vals[binnum], &Tmedval, &Terr_up, &Terr_down);
+            if (print_debug_message) cout<<"Tmedout : "<<Tmedval<<" Tmedin :"<<Tmed->at(YZhist_num(i,j,nbinsY));
+            if (Tmedval==0) continue;
+            deltaT_YZ_h2_err0->SetBinContent(i+1,j+1,Tmedval);
             deltaT_YZ_h2_err0->SetBinError(i+1,j+1,(Terr_up+Terr_down)/2);
-            deltaT_YZ_h2_err1->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err1->SetBinContent(i+1,j+1,Tmedval);
             deltaT_YZ_h2_err1->SetBinError(i+1,j+1,Terr_up);
-            deltaT_YZ_h2_err2->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err2->SetBinContent(i+1,j+1,Tmedval);
             deltaT_YZ_h2_err2->SetBinError(i+1,j+1,Terr_down);
         }
     }
@@ -260,13 +271,14 @@ void frame::Loop()
         {
             int binnum = YZhist_num(i,j,nbinsY);
             if (peak_vals_neg[binnum].size() < med_min_hits_num) continue;
-            float Tmed, Terr_up, Terr_down;
-            get_vec_med_err(peak_vals_neg[binnum], &Tmed, &Terr_up, &Terr_down);
-            deltaT_YZ_h2_err0_neg->SetBinContent(i+1,j+1,Tmed);
+            float Tmedval, Terr_up, Terr_down;
+            get_vec_med_err(peak_vals_neg[binnum], &Tmedval, &Terr_up, &Terr_down);
+            if (Tmedval==0) continue;
+            deltaT_YZ_h2_err0_neg->SetBinContent(i+1,j+1,Tmedval);
             deltaT_YZ_h2_err0_neg->SetBinError(i+1,j+1,(Terr_up+Terr_down)/2);
-            deltaT_YZ_h2_err1_neg->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err1_neg->SetBinContent(i+1,j+1,Tmedval);
             deltaT_YZ_h2_err1_neg->SetBinError(i+1,j+1,Terr_up);
-            deltaT_YZ_h2_err2_neg->SetBinContent(i+1,j+1,Tmed);
+            deltaT_YZ_h2_err2_neg->SetBinContent(i+1,j+1,Tmedval);
             deltaT_YZ_h2_err2_neg->SetBinError(i+1,j+1,Terr_down);
         }
     }
@@ -277,7 +289,6 @@ void frame::Loop()
     }
 
     deltaT_YZ_h2_err0->Write(); deltaT_YZ_h2_err0_neg->Write();
-    //deltaT_YZ_h2_err0->Draw("COLZ TEXT");
     deltaT_YZ_h2_err1->Write(); deltaT_YZ_h2_err1_neg->Write();
     deltaT_YZ_h2_err2->Write(); deltaT_YZ_h2_err2_neg->Write();
 

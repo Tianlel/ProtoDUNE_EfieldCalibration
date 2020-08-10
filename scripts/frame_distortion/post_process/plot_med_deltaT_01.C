@@ -37,7 +37,7 @@ bool check_out(int nbinsY, int nbinsZ, TH2F *h, int i, int j, int diff_min)
 }
 
 double X0 = 358.6; // cm
-double driftv = 0.16; //cm/us
+double driftv = 0.156; //0.156461 cm/us 
 
 float get_distortion(float deltaT, int neg)
 {
@@ -77,8 +77,8 @@ void plot_med_deltaT_01()
     int deltaT_max = 4700;
     int deltaT_margin = 10; // ticks
 
-    TH2F *out = new TH2F("out","frame distortion (beam left); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
-    TH2F *out_neg = new TH2F("clone_neg","frame distortion (beam right); Z (cm); Y(cm); deltaT (ticks)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *out = new TH2F("frameXoffset_pos","frame Xoffset (beam left); Z (cm); Y(cm); Xoffset (cm)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
+    TH2F *out_neg = new TH2F("frameXoffset_neg","frame Xoffset (beam right); Z (cm); Y(cm); Xoffset (cm)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
 
     TH2F *deltaT_YZ_h2, *deltaT_YZ_h2_neg;
     f->GetObject("deltaT_YZ_h2_err0", deltaT_YZ_h2);
@@ -116,21 +116,27 @@ void plot_med_deltaT_01()
             }
         }
     }
+
 /*
     TCanvas *c1 = new TCanvas("c1", "c1", 4000, 4000);
     out->SetMarkerSize(0.7);
     out->Draw("COLZ TEXT");
-    out->GetZaxis()->SetRangeUser(7,11);
+    out->GetZaxis()->SetRangeUser(-2,2);
     c1->SaveAs("frameDisplacementTH2.png");
-
     deltaT_YZ_h2->SetMarkerSize(0.7);
     deltaT_YZ_h2->Draw("COLZ TEXT");
     deltaT_YZ_h2->GetZaxis()->SetRangeUser(4575,4620);
     //c1->SaveAs(save_name+".png");
-*/
     TCanvas *c2 = new TCanvas("c2", "c2", 4000, 4000);
     out_neg->SetMarkerSize(0.7);
     out_neg->Draw("COLZ TEXT");
-    out_neg->GetZaxis()->SetRangeUser(-11,-7);
+    out_neg->GetZaxis()->SetRangeUser(-2.5,1.5);
     c2->SaveAs("frameDisplacementTH2_neg.png");
+
+*/
+    TFile *file = new TFile("frameXoffset.root", "recreate");
+    out->Write();
+    out_neg->Write();
+    file->Write();
+    file->Close();
 }

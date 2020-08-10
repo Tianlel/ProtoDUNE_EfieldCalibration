@@ -3,25 +3,6 @@
 
 /********** constant variables ***********/
 
-/* inut file */
-string input_file_name = "deltaTmed.root";
-
-/* output file */
-string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "ALLEVENTS_deltaT_with_contraction_corr.root";
-
-/* optional variables */
-Long64_t select_nentries = 0; // 0 -> use all nentries
-int set_jentry = 0;
-int print_debug_message = 0;
-
-/* cut parameters */
-int hits_size_min = 5; 
-int CA_crossing_cut = 0;
-
-int YZ_deltaT_getmed_lowerbound = 4580; // find peak after this threshold
-int YZ_deltaT_entries_min = 1000; // minimum number of entries to perform getmedian function
-
 // deltaT cut for cathode-anode crosser selection
 int Tcut_mid[6][2] = { {4595, 4605}, {4595, 4607}, {4593, 4608},
                        {4587, 4609}, {4601, 4594}, {4595, 4602} };
@@ -140,15 +121,16 @@ double Zp[6]={0.575,230.112,232.635,462.172,464.695,694.232};
 double Zn[6]={0.560,230.097,232.620,462.157,464.68,694.217};
 
 double zthermal(double z, int tpcno){
-    if(tpcno==1||tpcno==5||tpcno==9)
-        return z+((Zn[(tpcno-1)/2]+Zn[(tpcno-1)/2+1])/2.0-z)*2.7e-3;
-    if(tpcno==2||tpcno==6||tpcno==10)
-        return z+((Zp[(tpcno-2)/2]+Zp[(tpcno-2)/2+1])/2.0-z)*2.7e-3;
-    return -1;
+  if(tpcno==1||tpcno==5||tpcno==9) 
+    return z+((Zn[(tpcno-1)/2]+Zn[(tpcno-1)/2+1])/2.0-z)*2.7e-3+0.63*(5-tpcno)/4.0;
+  if(tpcno==2||tpcno==6||tpcno==10) 
+    return z+((Zp[(tpcno-2)/2]+Zp[(tpcno-2)/2+1])/2.0-z)*2.7e-3+0.63*(6-tpcno)/4.0;
+  return -1;
 }
 double ythermal(double y){
   return y+(606.93-y)*2.7e-3;
 }
+
 /******/
 
 int get_frame_tag(int z)
@@ -284,13 +266,31 @@ void create_n_hists_YZ(int nbinsY, int n, TH1F *hists_pos[n], TH1F *hists_neg[n]
     }
 }
 
-void fill_deltaT_vec(float deltaT, int deltaT_margin, int zbin, int ybin, vector<float> *deltaT_meds, vector<vector<float>> &peak_vals)
+void fill_deltaT_vec(float deltaT, int deltaT_margin, int zbin, int ybin, vector<float> *deltaT_meds, vector<vector<double>> &peak_vals)
 {
     int num = YZhist_num(zbin, ybin, (Ymax-Ymin)/Ybinsize);
-    if (deltaT_meds->at(num)-deltaT_margin <= deltaT && deltaT >= deltaT_meds->at(num)+deltaT_margin)
+    if (deltaT_meds->at(num)-deltaT_margin <= deltaT && deltaT <= deltaT_meds->at(num)+deltaT_margin)
+    {
         peak_vals[num].push_back(deltaT);
+    }
 }
 
+void get_vec_med_err(vector<double> peak_vals, float *med, float *err_up, float *err_down)
+{
+    int size = peak_vals.size();
+    if (size < 5) 
+    {
+        *med = 0;
+        return;
+    }
+    double sigma = 0.5/sqrt(size+2);
+    double p[3] = {0.5-sigma, 0.5, 0.5+sigma}, qout[3];
+    double *a = &peak_vals[0]; 
+    TMath::Quantiles(peak_vals.size(),3,&a[0],qout,p,0,0,8); 
+    *med = qout[1];
+    *err_up = qout[2]-qout[1];
+    *err_down = qout[1]-qout[0];
+}
 /********* helper functions end *********/
 
 #endif
