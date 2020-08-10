@@ -1,3 +1,5 @@
+/* get deltaT vs Y && deltaT vs Z */
+
 #include <fstream>
 #include "post_cm_fun.h"
 
@@ -9,10 +11,10 @@ void create_n_histsY(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
     for (int i=0; i<n; i++)
     {   
         hists_pos[i] = new TH1F(Form("%s_pos_%d", name, i),
-                            Form("%s (Beam Left), Ybin%d; %s; %s", hist_title, i,
+                            Form("%s (Beam Left), Y = %d cm; %s; %s", hist_title, 10+20*i,
                                  x_unit, y_unit), nbinsX, x0, x1);
         hists_neg[i] = new TH1F(Form("%s_neg_%d", name, i),
-                            Form("%s (Beam Right), Ybin%d; %s; %s", hist_title, i,
+                            Form("%s (Beam Right), Y = %d cm; %s; %s", hist_title, 10+20*i,
                                  x_unit, y_unit), nbinsX, x0, x1);
     }
 }
@@ -26,10 +28,10 @@ void create_n_histsZ(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
     for (int i=0; i<n; i++)
     {
         hists_pos[i] = new TH1F(Form("%s_pos_%d", name, i),
-                            Form("%s (Beam Left), Zbin%d; %s; %s", hist_title, i,
+                            Form("%s (Beam Left), Z = %d cm; %s; %s", hist_title, 20*i,
                                  x_unit, y_unit), nbinsX, x0, x1);
         hists_neg[i] = new TH1F(Form("%s_neg_%d", name, i),
-                            Form("%s (Beam Right), Zbin%d; %s; %s", hist_title, i,
+                            Form("%s (Beam Right), Z = %d cm; %s; %s", hist_title, 20*i,
                                  x_unit, y_unit), nbinsX, x0, x1);
     }
 }
