@@ -92,7 +92,7 @@ double zcorrect(double x_calc, double y_measured, double z_measured)
 
 ////getting the variable Efield using data driven maps
 // from Ajib
-TFile *ef=new TFile("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/distortion_maps/SCE_DataDriven_180kV_v3.root");
+TFile *ef=new TFile("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/distortion_maps/SCE_DataDriven_180kV_v4.root");
 TH3F *xneg=(TH3F*)ef->Get("Reco_ElecField_X_Neg");
 TH3F *yneg=(TH3F*)ef->Get("Reco_ElecField_Y_Neg");
 TH3F *zneg=(TH3F*)ef->Get("Reco_ElecField_Z_Neg");
