@@ -12,11 +12,11 @@
 using namespace std;
    
 /* inut file */
-string input_file_name = "deltaTmed.root";
+string input_file_name = "deltaTmed_v3.root";
 
 /* output file */
 string output_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
-string output_file_name = "deltaTvsZ.root";
+string output_file_name = "getmed_with_thermal_unordered_dT.root";
 
 /* optional variables */
 Long64_t select_nentries = 0; // 0 -> use all nentries
@@ -144,6 +144,7 @@ void frame::Loop()
                 {
                     int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
                     hits.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
+                                       // trkhity2->at(i)[j], trkhitz_wire2->at(i)[j],
                                         ythermal(trkhity2->at(i)[j]),
                                         zthermal(trkhitz_wire2->at(i)[j], hit_tpc2->at(i)[j]),
                                         9999.,hit_tpc2->at(i)[j],
@@ -153,7 +154,7 @@ void frame::Loop()
                 if (hit_tpc2->at(i)[j] == tpc_right_front || hit_tpc2->at(i)[j] == tpc_right_mid || hit_tpc2->at(i)[j] == tpc_right_back)
                 {
                     int frame_tag = get_frame_tag(trkhitz_wire2->at(i)[j]);
-                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0, 0,
+                    hits_neg.push_back( Hit(hit_peakT2->at(i)[j], 0, 0, // trkhity2->at(i)[j], trkhitz_wire2->at(i)[j],
                                         ythermal(trkhity2->at(i)[j]),
                                         zthermal(trkhitz_wire2->at(i)[j],hit_tpc2->at(i)[j]),
                                         -9999.,hit_tpc2->at(i)[j],
@@ -166,7 +167,7 @@ void frame::Loop()
                 if (print_debug_message) print("create track object");
                 // create Track object
                 Track trk = Track(hits);
-                trk.sort_by_T();
+                trk.sort0();
                 float Tmin = trk.Tmin();
                 trk.set_deltaT_local(Tmin);
                 int frame_tag = trk.get_cathode_frame_tag();
@@ -199,7 +200,7 @@ void frame::Loop()
                 if (print_debug_message) print("create track object (neg)");
                 // create Track object
                 Track trk = Track(hits_neg);
-                trk.sort_by_T();
+                trk.sort0();
                 float Tmin = trk.Tmin();
                 trk.set_deltaT_local(Tmin);
                 int frame_tag = trk.get_cathode_frame_tag();

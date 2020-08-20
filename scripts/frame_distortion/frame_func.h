@@ -86,10 +86,16 @@ struct Track {
     int deltaT_total() {return hits[hits.size()-1].peakT - hits[0].peakT;};
     Hit cathode_hit() {return hits[hits.size()-1];};
     int get_cathode_frame_tag() {return hits[hits.size()-1].frame_tag;};
+    void sort0(); // reverse order if last hit < first hit
     void sort_by_T();
     void set_deltaT_local(float Tmin);
     void print(int verbose);
 };
+
+void Track::sort0(){
+    if (hits.begin()->peakT > hits.end()->peakT)
+        reverse(hits.begin(), hits.end());    
+}
 
 void Track::sort_by_T(){
     sort(hits.begin(), hits.end(), [&](const auto& hit1, const auto& hit2)

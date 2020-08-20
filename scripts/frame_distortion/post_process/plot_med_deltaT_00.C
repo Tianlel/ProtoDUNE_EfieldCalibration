@@ -37,12 +37,12 @@ void plot_med_deltaT_00()
     string PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
     string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots/";
     string OUTPUT_TREE_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
-    TString save_name = TString::Format("%sdeltaT_med_TH2", OUTPUT_PATH.c_str());
+    TString save_name = TString::Format("%sdeltaT_med_v3_withThermal", OUTPUT_PATH.c_str());
     TString save_name_tree = TString::Format("%s", OUTPUT_TREE_PATH.c_str()); 
 
     
-    TFile *f = TFile::Open("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/togetmed.root", "READ");
-    TFile *froot = TFile::Open(save_name_tree + "deltaTmed.root", "RECREATE");
+    TFile *f = TFile::Open("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/getmed_with_thermal_unordered_dT.root", "READ");
+    TFile *froot = TFile::Open(save_name_tree + "deltaTmed_v3.root", "RECREATE");
 
     vector<float> med_vals, med_vals_neg;
 
