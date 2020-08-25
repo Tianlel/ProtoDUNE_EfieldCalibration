@@ -36,8 +36,6 @@ void create_n_histsZ(int n, TH1F *hists_pos[n], TH1F *hists_neg[n],
     }
 }
 
-
-
 /* Plot dT vs Z & dT vs Y */ 
 int YZ_deltaT_binsize = 2; // ticks
 int YZ_deltaT_min = 4000; // ticks
@@ -48,11 +46,12 @@ int Zmin = -10, Zmax = 710; // cm
 
 void plot_dTvsY_dTvsZ()
 {
+    int save_root_file = 1;
     string PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
     string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots/";
     string OUTPUT_TREE_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
 
-    TFile *f = TFile::Open("TH2_dT_unordered_dT_without_thermal_rm_outlier.root", "READ");
+    TFile *f = TFile::Open("rootfiles_after_rm_bdry/TH2_dT_unordered_dT_without_thermal_rm_outlier.root", "READ");
 
     TStyle *st = new TStyle("Modern","my style");
     st->SetPadGridX(1);
@@ -85,10 +84,6 @@ void plot_dTvsY_dTvsZ()
             med = deltaT_YZ_h2->GetBinContent(i+1,j+1);
             err = deltaT_YZ_h2->GetBinError(i+1,j+1);
 
-            if (check_out(nbinsY, nbinsZ, deltaT_YZ_h2, i, j, 10))
-            {
-                if (j==1 || j==29) continue;
-            }
             out->SetBinContent(i,j,med);
         }
     }
@@ -98,14 +93,8 @@ void plot_dTvsY_dTvsZ()
         {
             med = deltaT_YZ_h2_neg->GetBinContent(i+1,j+1);
             err = deltaT_YZ_h2_neg->GetBinError(i+1,j+1);
-            if (check_out(nbinsY, nbinsZ, deltaT_YZ_h2_neg, i, j, 15))
-            {
-                if (med<4590) continue;
-            } 
-            if (med!=0) 
-            {
-                out_neg->SetBinContent(i,j,med);
-            }
+
+            out_neg->SetBinContent(i,j,med);
         }
     }
 
@@ -149,36 +138,32 @@ void plot_dTvsY_dTvsZ()
             deltaTZ_neg[j]->Fill(zval,val);
         }
     }
-/*
-    TCanvas *c1 = new TCanvas("c1", "c1", 4000, 4000);
-    out->SetMarkerSize(0.7);
-    out->Draw("COLZ TEXT");
-    out->GetZaxis()->SetRangeUser(-2,2);
-    c1->SaveAs("frameDisplacementTH2.png");
-    deltaT_YZ_h2->SetMarkerSize(0.7);
-    deltaT_YZ_h2->Draw("COLZ TEXT");
-    deltaT_YZ_h2->GetZaxis()->SetRangeUser(4575,4620);
-    //c1->SaveAs(save_name+".png");
-    TCanvas *c2 = new TCanvas("c2", "c2", 4000, 4000);
-    out_neg->SetMarkerSize(0.7);
-    out_neg->Draw("COLZ TEXT");
-    out_neg->GetZaxis()->SetRangeUser(-2.5,1.5);
-    c2->SaveAs("frameDisplacementTH2_neg.png");
 
-*/
-    TFile *file = new TFile("deltaTvsY_deltaTvsZ.root", "recreate");
+    TCanvas *c = new TCanvas("c","c", 10000, 14000);
+    c->Divide(6,6);
+    TCanvas *c2 = new TCanvas("c2","c2", 10000, 14000);
+    c2->Divide(5,6);
+    
+    TFile *file = new TFile("deltaTvsY_deltaTvsZ_unordered_without_thermal.root", "recreate");
     for (int i=0; i<nbinsZ; i++) 
     {
-        deltaTY[i]->Write();
+        if (save_root_file) deltaTY[i]->Write();
+        c->cd(i+1);
+        deltaTY[i]->Draw("hist");
         deltaTY[i]->GetYaxis()->SetRangeUser(4550,4630);
-        deltaTY_neg[i]->Write();
+        if (save_root_file) deltaTY_neg[i]->Write();
         deltaTY_neg[i]->GetYaxis()->SetRangeUser(4550,4630);
     }
     for (int i=0; i<nbinsY; i++) 
     {
-        deltaTZ[i]->Write();
-        deltaTZ_neg[i]->Write();
+        if (save_root_file) deltaTZ[i]->Write();
+        c2->cd(i+1);
+        deltaTZ[i]->Draw("hist");
+        deltaTZ[i]->GetYaxis()->SetRangeUser(4550,4630);
+        if (save_root_file) deltaTZ_neg[i]->Write();
     }
 
-    file->Write();
+    c->SaveAs("dT_vs_Y_unordered_wo_thermal.png");
+    c2->SaveAs("dT_vs_Z_unordered_wo_thermal.png");
+    if (save_root_file) file->Write();
 }

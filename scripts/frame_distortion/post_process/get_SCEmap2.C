@@ -5,7 +5,7 @@ float get_x_displacement_mike(float x, float y, float z, TH3F *map)
     return map->GetBinContent(map->FindBin(x,y,z));
 }
 
-void get_SCEmap22()
+void get_SCEmap2()
 {
     TStyle *st = new TStyle("Modern","my style");
     st->SetPadGridX(1);
@@ -40,17 +40,14 @@ void get_SCEmap22()
         {
             float y = Ymin+10+j*20, z = Zmin+10+i*20;
             float dis0 = get_x_displacement_mike(0.15, y, z, dismap0);
-            float dis1 = dismap1->Interpolate(y,z);
-            if (dis1 == 0) dis1 = dismap1->GetBinContent(i+1,j+1); // if interpolation cannot be performed
+            float dis1 = dismap1->GetBinContent(i+1,j+1);
             if (dis1 == 0) continue;
             float dif = dis0 - dis1;
             map->SetBinContent(i+1,j+1,dif);
              
             // beam right
             dis0 = get_x_displacement_mike(-0.15, y, z, dismap0_neg);
-            cout<<"y: "<<y<<" z: "<<z<<endl;
-            dis1 = dismap1_neg->Interpolate(y,z);
-            if (dis1 == 0) dis1 = dismap1_neg->GetBinContent(i+1,j+1); // if interpolation cannot be performed
+            dis1 = dismap1_neg->GetBinContent(i+1,j+1); 
             if (dis1 == 0) continue;
             dif = dis0 - dis1;
             map_neg->SetBinContent(i+1,j+1,dif);
