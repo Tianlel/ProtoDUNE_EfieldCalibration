@@ -150,8 +150,12 @@ void plot_dTvsY_dTvsZ()
         if (save_root_file) deltaTY[i]->Write();
         c->cd(i+1);
         deltaTY[i]->Draw("hist");
+        deltaTY[i]->SetLineColor(kRed);
         deltaTY[i]->GetYaxis()->SetRangeUser(4550,4630);
+    
         if (save_root_file) deltaTY_neg[i]->Write();
+        deltaTY_neg[i]->Draw("hist SAME");
+        deltaTY_neg[i]->SetLineColor(kBlue);
         deltaTY_neg[i]->GetYaxis()->SetRangeUser(4550,4630);
     }
     for (int i=0; i<nbinsY; i++) 
@@ -159,11 +163,16 @@ void plot_dTvsY_dTvsZ()
         if (save_root_file) deltaTZ[i]->Write();
         c2->cd(i+1);
         deltaTZ[i]->Draw("hist");
+        deltaTZ[i]->SetLineColor(kRed);
         deltaTZ[i]->GetYaxis()->SetRangeUser(4550,4630);
+
         if (save_root_file) deltaTZ_neg[i]->Write();
+        deltaTZ_neg[i]->Draw("hist SAME");
+        deltaTZ_neg[i]->SetLineColor(kBlue);
+        deltaTZ_neg[i]->GetYaxis()->SetRangeUser(4550,4630);
     }
 
-    c->SaveAs("dT_vs_Y_unordered_wo_thermal.png");
-    c2->SaveAs("dT_vs_Z_unordered_wo_thermal.png");
+    c->SaveAs("./../../../plots/data/dT_vs_Y_unordered_wo_thermal.png");
+    c2->SaveAs("./../../../plots/data/dT_vs_Z_unordered_wo_thermal.png");
     if (save_root_file) file->Write();
 }
