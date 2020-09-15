@@ -101,6 +101,7 @@ void get_and_rm_outlier0()
                 if (j==1 && med < 4595) continue;    
             }
             h->SetBinContent(i+1,j+1,med);
+            h->SetBinError(i+1,j+1,err);
         }
     }
 
@@ -120,6 +121,8 @@ void get_and_rm_outlier0()
                 if (j==1 && (med < 4594 || med > 4600)) continue; 
             } 
             h_neg->SetBinContent(i+1,j+1,med);
+            h_neg->SetBinError(i+1,j+1,err);
+            cout<<"err="<<err<<" seterr="<<h_neg->GetBinError(i+1,j+1,err)<<endl;
         }
     }
 /*
@@ -128,14 +131,14 @@ void get_and_rm_outlier0()
     h->Draw("COLZ TEXT");
     h->GetZaxis()->SetRangeUser(4575,4620);
     c1->SaveAs("TH2_dT_unordered_dT_without_thermal_rm_outlier.png");
- */
     TCanvas *c2 = new TCanvas("c2", "c2", 4000, 4000);
     h_neg->SetMarkerSize(0.7);
     h_neg->Draw("COLZ TEXT");
     h_neg->GetZaxis()->SetRangeUser(4575,4620);
     c2->SaveAs("TH2_dT_unordered_dT_without_thermal_rm_outlier_neg.png");
+ */
 
-    TFile *file = new TFile("TH2_dT_unordered_dT_without_thermal.root", "recreate");
+    TFile *file = new TFile("TH2_dT_unordered_dT_without_thermal_rm_outlier.root", "recreate");
     h->Write();
     h_neg->Write();
     file->Write();

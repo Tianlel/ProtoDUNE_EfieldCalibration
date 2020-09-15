@@ -51,7 +51,7 @@ void plot_dTvsY_dTvsZ()
     string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots/";
     string OUTPUT_TREE_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
 
-    TFile *f = TFile::Open("rootfiles_after_rm_bdry/TH2_dT_unordered_dT_without_thermal_rm_outlier.root", "READ");
+    TFile *f = TFile::Open("../../distortion_maps/frameXoffset_unordered_dT_without_thermal.root", "READ");
 
     TStyle *st = new TStyle("Modern","my style");
     st->SetPadGridX(1);
@@ -63,46 +63,15 @@ void plot_dTvsY_dTvsZ()
     int nbinsY = 30, nbinsZ = 36;
     int deltaT_YZ_hists_num = nbinsY * nbinsZ;
 
-    int nentries_min = 1000;
-
-    // selection range
-    int deltaT_min = 4580;
-    int deltaT_max = 4700;
-    int deltaT_margin = 10; // ticks
-
-    TH2F *out = new TH2F("frameXoffset_pos","frame Xoffset (beam left); Z (cm); Y(cm); Xoffset (cm)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
-    TH2F *out_neg = new TH2F("frameXoffset_neg","frame Xoffset (beam right); Z (cm); Y(cm); Xoffset (cm)", nbinsZ, Zmin, Zmax, nbinsY, Ymin, Ymax);
-
-    TH2F *deltaT_YZ_h2, *deltaT_YZ_h2_neg;
-    f->GetObject("dT_rmBoundary_pos", deltaT_YZ_h2);
-    f->GetObject("dT_rmBoundary_neg", deltaT_YZ_h2_neg);
-    float med, err;
-    for (int i=0; i<nbinsZ; i++)
-    {
-        for (int j=0; j<nbinsY; j++)
-        {
-            med = deltaT_YZ_h2->GetBinContent(i+1,j+1);
-            err = deltaT_YZ_h2->GetBinError(i+1,j+1);
-
-            out->SetBinContent(i,j,med);
-        }
-    }
-    for (int i=0; i<nbinsZ; i++)
-    {
-        for (int j=0; j<nbinsY; j++)
-        {
-            med = deltaT_YZ_h2_neg->GetBinContent(i+1,j+1);
-            err = deltaT_YZ_h2_neg->GetBinError(i+1,j+1);
-
-            out_neg->SetBinContent(i,j,med);
-        }
-    }
+    TH2F *h, *h_neg;
+    f->GetObject("frameXoffset_pos", h);
+    f->GetObject("frameXoffset_neg", h_neg);
 
     int nbinsT_YZ = (YZ_deltaT_max - YZ_deltaT_min) / YZ_deltaT_binsize;
     TH1F *deltaTZ[nbinsY], *deltaTZ_neg[nbinsY];
     char deltaTZ_name[] = "deltaTZ",
-         deltaTZ_title[] = "deltaT vs Z";
-    char deltaTZ_xunit[] = "Z (cm)", deltaTZ_yunit[] = "median deltaT (ticks)";
+         deltaTZ_title[] = "Xoffset vs Z";
+    char deltaTZ_xunit[] = "Z (cm)", deltaTZ_yunit[] = "displacement (cm)";
     create_n_histsY(nbinsY, deltaTZ, deltaTZ_neg,
                    deltaTZ_name, deltaTZ_title,
                    deltaTZ_xunit, deltaTZ_yunit,
@@ -110,69 +79,73 @@ void plot_dTvsY_dTvsZ()
 
     TH1F *deltaTY[nbinsZ], *deltaTY_neg[nbinsZ];
     char deltaTY_name[] = "deltaTY",
-         deltaTY_title[] = "deltaT vs Y";
-    char deltaTY_xunit[] = "Y (cm)", deltaTY_yunit[] = "median deltaT (ticks)";
+         deltaTY_title[] = "Xoffset vs Y";
+    char deltaTY_xunit[] = "Y (cm)", deltaTY_yunit[] = "displacement (cm)";
     create_n_histsZ(nbinsZ, deltaTY, deltaTY_neg,
                    deltaTY_name, deltaTY_title,
                    deltaTY_xunit, deltaTY_yunit,
                    0, Ymax, nbinsY);
 
-    float val, yval, zval;
+    float val, yval, zval, err;
     for (int i=0; i<nbinsZ; i++)
     {
         for (int j=0; j<nbinsY; j++)   
         {
-            val = out->GetBinContent(i+1,j+1);
-            zval = out->GetXaxis()->GetBinCenter(i+1);
-            yval = out->GetYaxis()->GetBinCenter(j+1);
+            val = h->GetBinContent(i+1,j+1);
+            err = h->GetBinError(i+1,j+1);
+            zval = h->GetXaxis()->GetBinCenter(i+1);
+            yval = h->GetYaxis()->GetBinCenter(j+1);
             
             deltaTY[i]->Fill(yval,val);
+            deltaTY[i]->SetBinError(j+1,err);
             deltaTZ[j]->Fill(zval,val);
-            if (i==10 && j == 20) deltaTZ[i]->Draw("hist");
+            deltaTZ[j]->SetBinError(i+1,err);
 
-            val = out_neg->GetBinContent(i+1,j+1);
-            zval = out_neg->GetXaxis()->GetBinCenter(i+1);
-            yval = out_neg->GetYaxis()->GetBinCenter(j+1);
+            val = h_neg->GetBinContent(i+1,j+1);
+            err = h_neg->GetBinError(i+1,j+1);
+            zval = h_neg->GetXaxis()->GetBinCenter(i+1);
+            yval = h_neg->GetYaxis()->GetBinCenter(j+1);
             
             deltaTY_neg[i]->Fill(yval,val);
+            deltaTY_neg[i]->SetBinError(j+1,err);
             deltaTZ_neg[j]->Fill(zval,val);
+            deltaTZ_neg[j]->SetBinError(i+1,err);
         }
     }
-
     TCanvas *c = new TCanvas("c","c", 10000, 14000);
     c->Divide(6,6);
     TCanvas *c2 = new TCanvas("c2","c2", 10000, 14000);
     c2->Divide(5,6);
     
-    TFile *file = new TFile("deltaTvsY_deltaTvsZ_unordered_without_thermal.root", "recreate");
+    TFile *file = new TFile("dXvsY_dXvsZ_unordered_wo_thermal.root", "recreate");
     for (int i=0; i<nbinsZ; i++) 
     {
         if (save_root_file) deltaTY[i]->Write();
         c->cd(i+1);
-        deltaTY[i]->Draw("hist");
+        deltaTY[i]->Draw();
         deltaTY[i]->SetLineColor(kRed);
-        deltaTY[i]->GetYaxis()->SetRangeUser(4550,4630);
+        deltaTY[i]->GetYaxis()->SetRangeUser(-3,3);
     
         if (save_root_file) deltaTY_neg[i]->Write();
-        deltaTY_neg[i]->Draw("hist SAME");
+        deltaTY_neg[i]->Draw("SAME");
         deltaTY_neg[i]->SetLineColor(kBlue);
-        deltaTY_neg[i]->GetYaxis()->SetRangeUser(4550,4630);
+        deltaTY_neg[i]->GetYaxis()->SetRangeUser(-3,3);
     }
     for (int i=0; i<nbinsY; i++) 
     {
         if (save_root_file) deltaTZ[i]->Write();
         c2->cd(i+1);
-        deltaTZ[i]->Draw("hist");
+        deltaTZ[i]->Draw();
         deltaTZ[i]->SetLineColor(kRed);
-        deltaTZ[i]->GetYaxis()->SetRangeUser(4550,4630);
+        deltaTZ[i]->GetYaxis()->SetRangeUser(-3,3);
 
         if (save_root_file) deltaTZ_neg[i]->Write();
-        deltaTZ_neg[i]->Draw("hist SAME");
+        deltaTZ_neg[i]->Draw("SAME");
         deltaTZ_neg[i]->SetLineColor(kBlue);
-        deltaTZ_neg[i]->GetYaxis()->SetRangeUser(4550,4630);
+        deltaTZ_neg[i]->GetYaxis()->SetRangeUser(-3,3);
     }
 
-    c->SaveAs("./../../../plots/data/dT_vs_Y_unordered_wo_thermal.png");
-    c2->SaveAs("./../../../plots/data/dT_vs_Z_unordered_wo_thermal.png");
+    c->SaveAs("./../../../plots/data/Xoffset_vs_Y_unordered_wo_thermal.pdf");
+    c2->SaveAs("./../../../plots/data/Xoffset_vs_Z_unordered_wo_thermal.pdf");
     if (save_root_file) file->Write();
 }
