@@ -46,12 +46,12 @@ int Zmin = -10, Zmax = 710; // cm
 
 void plot_dTvsY_dTvsZ()
 {
-    int save_root_file = 1;
+    int save_root_file = 0;
     string PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
     string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots/";
     string OUTPUT_TREE_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/scripts/frame_distortion/";
 
-    TFile *f = TFile::Open("../../distortion_maps/frameXoffset_unordered_dT_without_thermal.root", "READ");
+    TFile *f = TFile::Open("../../distortion_maps/frameDisplacement_unordered_dT_without_thermal_v2.root", "READ"); //"../../distortion_maps/frameXoffset_unordered_dT_without_thermal.root", "READ");
 
     TStyle *st = new TStyle("Modern","my style");
     st->SetPadGridX(1);
@@ -64,13 +64,13 @@ void plot_dTvsY_dTvsZ()
     int deltaT_YZ_hists_num = nbinsY * nbinsZ;
 
     TH2F *h, *h_neg;
-    f->GetObject("frameXoffset_pos", h);
-    f->GetObject("frameXoffset_neg", h_neg);
+    f->GetObject("frame_displacement", h);
+    f->GetObject("frame_displacement_neg", h_neg);
 
     int nbinsT_YZ = (YZ_deltaT_max - YZ_deltaT_min) / YZ_deltaT_binsize;
     TH1F *deltaTZ[nbinsY], *deltaTZ_neg[nbinsY];
     char deltaTZ_name[] = "deltaTZ",
-         deltaTZ_title[] = "Xoffset vs Z";
+         deltaTZ_title[] = "frame displacement vs Z";
     char deltaTZ_xunit[] = "Z (cm)", deltaTZ_yunit[] = "displacement (cm)";
     create_n_histsY(nbinsY, deltaTZ, deltaTZ_neg,
                    deltaTZ_name, deltaTZ_title,
@@ -79,7 +79,7 @@ void plot_dTvsY_dTvsZ()
 
     TH1F *deltaTY[nbinsZ], *deltaTY_neg[nbinsZ];
     char deltaTY_name[] = "deltaTY",
-         deltaTY_title[] = "Xoffset vs Y";
+         deltaTY_title[] = "frame displacement vs Y";
     char deltaTY_xunit[] = "Y (cm)", deltaTY_yunit[] = "displacement (cm)";
     create_n_histsZ(nbinsZ, deltaTY, deltaTY_neg,
                    deltaTY_name, deltaTY_title,
@@ -116,7 +116,7 @@ void plot_dTvsY_dTvsZ()
     c->Divide(6,6);
     TCanvas *c2 = new TCanvas("c2","c2", 10000, 14000);
     c2->Divide(5,6);
-    
+
     TFile *file = new TFile("dXvsY_dXvsZ_unordered_wo_thermal.root", "recreate");
     for (int i=0; i<nbinsZ; i++) 
     {
@@ -145,7 +145,7 @@ void plot_dTvsY_dTvsZ()
         deltaTZ_neg[i]->GetYaxis()->SetRangeUser(-3,3);
     }
 
-    c->SaveAs("./../../../plots/data/Xoffset_vs_Y_unordered_wo_thermal.pdf");
-    c2->SaveAs("./../../../plots/data/Xoffset_vs_Z_unordered_wo_thermal.pdf");
+    c->SaveAs("./../../../plots/data/frame_displacement_vs_Y_unordered_wo_thermal_v2.pdf");
+    c2->SaveAs("./../../../plots/data/frame_displacement_vs_Z_unordered_wo_thermal_v2.pdf");
     if (save_root_file) file->Write();
 }
