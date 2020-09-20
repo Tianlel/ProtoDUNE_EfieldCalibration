@@ -20,6 +20,7 @@ void get_2D_with_bdry()
     f->GetObject("deltaT_YZ_h2_err0_neg", deltaT_YZ_h2_neg);
 
     TCanvas *c1 = new TCanvas("c1", "c1", 1200, 500);
+    c1->SetCanvasSize(1200,500);
     c1->Divide(2,1);
     c1->cd(1);
     deltaT_YZ_h2->SetMarkerSize(0.8);
