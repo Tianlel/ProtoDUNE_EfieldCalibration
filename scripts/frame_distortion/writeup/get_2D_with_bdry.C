@@ -22,16 +22,16 @@ void get_2D_with_bdry()
     TCanvas *c1 = new TCanvas("c1", "c1", 1200, 500);
     c1->Divide(2,1);
     c1->cd(1);
-    deltaT_YZ_h2->SetMarkerSize(0.7);
+    deltaT_YZ_h2->SetMarkerSize(0.8);
     deltaT_YZ_h2->Draw("COLZ TEXT");
-    deltaT_YZ_h2->GetZaxis()->SetTitleOffset(0.5);
+    deltaT_YZ_h2->GetZaxis()->SetTitleOffset(0);
     deltaT_YZ_h2->GetZaxis()->SetRangeUser(4575,4620);
 
     c1->cd(2);
-    deltaT_YZ_h2_neg->SetMarkerSize(0.7);
+    deltaT_YZ_h2_neg->SetMarkerSize(0.8);
     deltaT_YZ_h2_neg->Draw("COLZ TEXT");
     deltaT_YZ_h2_neg->GetZaxis()->SetRangeUser(4575,4620);
-    deltaT_YZ_h2_neg->GetZaxis()->SetTitleOffset(0.5);
+    deltaT_YZ_h2_neg->GetZaxis()->SetTitleOffset(0);
     c1->SaveAs("p03_2D_dT_med_full.png");
 
 }
