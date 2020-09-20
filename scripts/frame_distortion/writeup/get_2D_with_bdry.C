@@ -1,5 +1,7 @@
+
 void get_2D_with_bdry()
 {
+    gROOT->SetBatch(kTRUE);
     string INPUT_FILE = "ALLEVENTS_without_thermal_unordered_dT.root";
     string PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/";
     string OUTPUT_PATH = "/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/plots/";
