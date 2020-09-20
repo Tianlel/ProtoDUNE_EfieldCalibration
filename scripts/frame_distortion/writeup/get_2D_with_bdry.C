@@ -19,18 +19,18 @@ void get_2D_with_bdry()
     f->GetObject("deltaT_YZ_h2_err0", deltaT_YZ_h2);
     f->GetObject("deltaT_YZ_h2_err0_neg", deltaT_YZ_h2_neg);
 
-    TCanvas *c1 = new TCanvas("c1", "c1", 600, 500);
+    TCanvas *c1 = new TCanvas("c1", "c1", 1200, 1000);
     deltaT_YZ_h2->SetMarkerSize(0.8);
     deltaT_YZ_h2->Draw("COLZ TEXT");
-    deltaT_YZ_h2->GetZaxis()->SetTitleOffset(0);
+    deltaT_YZ_h2->GetZaxis()->SetTitleOffset(0.5);
     deltaT_YZ_h2->GetZaxis()->SetRangeUser(4575,4620);
     c1->SaveAs("p03_2D_dT_med_full.png");
 
-    TCanvas *c2 = new TCanvas("c2", "c2", 600, 500);
+    TCanvas *c2 = new TCanvas("c2", "c2", 1200, 1000);
     deltaT_YZ_h2_neg->SetMarkerSize(0.8);
     deltaT_YZ_h2_neg->Draw("COLZ TEXT");
     deltaT_YZ_h2_neg->GetZaxis()->SetRangeUser(4575,4620);
-    deltaT_YZ_h2_neg->GetZaxis()->SetTitleOffset(0);
+    deltaT_YZ_h2_neg->GetZaxis()->SetTitleOffset(0.5);
     c2->SaveAs("p04_2D_dT_med_full_neg.png");
 
 }
