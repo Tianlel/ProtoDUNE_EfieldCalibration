@@ -44,8 +44,8 @@ void get_dT_distribution()
     TFile *f = TFile::Open("/dune/app/users/tianlel/protoDUNE/E_field/ProtoDUNE_EfieldCalibration/output_ROOTtree/reco/frame_distortion/ALLEVENTS_without_thermal_unordered_dT.root", "READ");
 
     TCanvas *c = getp1(f);
-    c->SaveAs("./plots/p02_dT_two_peak_feature.png");
+    c->SaveAs("./plots/p02_dT_two_peak_feature.pdf");
 
     TCanvas *c2 = getp2(f);
-    c2->SaveAs("./plots/p01_dT_one_peak_feature.png");
+    c2->SaveAs("./plots/p01_dT_one_peak_feature.pdf");
 }
