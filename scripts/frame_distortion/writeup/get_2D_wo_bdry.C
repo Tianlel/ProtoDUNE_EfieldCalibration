@@ -18,7 +18,7 @@ void get_2D_wo_bdry()
     f->GetObject("dT_rmBoundary_pos", deltaT_YZ_h2);
     f->GetObject("dT_rmBoundary_neg", deltaT_YZ_h2_neg);
 
-    TCanvas *c1 = new TCanvas("c1", "c1", 1200, 1000);
+    TCanvas *c1 = new TCanvas("c1", "c1", 1500, 1000);
     deltaT_YZ_h2->SetMarkerSize(0.7);
     deltaT_YZ_h2->SetTitle("beam left (x>0);z (cm);y (cm); dT (ticks)");
     deltaT_YZ_h2->Draw("COLZ TEXT");
@@ -26,7 +26,7 @@ void get_2D_wo_bdry()
     deltaT_YZ_h2->GetZaxis()->SetRangeUser(4575,4620);
     c1->SaveAs("p06_2D_dT_med.pdf");
 
-    TCanvas *c2 = new TCanvas("c2", "c2", 1200, 1000);
+    TCanvas *c2 = new TCanvas("c2", "c2", 1500, 1000);
     deltaT_YZ_h2_neg->SetMarkerSize(0.7);
     deltaT_YZ_h2_neg->SetTitle("beam right (x<0) ;z (cm);y (cm); dT (ticks)");
     deltaT_YZ_h2_neg->Draw("COLZ TEXT");
