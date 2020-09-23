@@ -18,7 +18,7 @@ void get_2D_with_bdry()
     f->GetObject("deltaT_YZ_h2_err0", deltaT_YZ_h2);
     f->GetObject("deltaT_YZ_h2_err0_neg", deltaT_YZ_h2_neg);
 
-    TCanvas *c1 = new TCanvas("c1", "c1", 1500, 1000);
+    TCanvas *c1 = new TCanvas("c1", "c1", 1600, 1000);
     deltaT_YZ_h2->SetMarkerSize(0.7);
     deltaT_YZ_h2->SetTitle("beam left (x>0);z (cm);y (cm); dT (ticks)");
     deltaT_YZ_h2->Draw("COLZ TEXT");
@@ -26,7 +26,7 @@ void get_2D_with_bdry()
     deltaT_YZ_h2->GetZaxis()->SetRangeUser(4575,4620);
     c1->SaveAs("./plots/p03_2D_dT_med_full.pdf");
 
-    TCanvas *c2 = new TCanvas("c2", "c2", 1500, 1000);
+    TCanvas *c2 = new TCanvas("c2", "c2", 1600, 1000);
     deltaT_YZ_h2_neg->SetMarkerSize(0.7);
     deltaT_YZ_h2_neg->SetTitle("beam right (x<0) ;z (cm);y (cm); dT (ticks)");
     deltaT_YZ_h2_neg->Draw("COLZ TEXT");
