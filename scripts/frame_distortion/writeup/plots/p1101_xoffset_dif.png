@@ -1,0 +1,52 @@
+{
+//========= Macro generated from object: xoffset_dif/Xoffset_beam_left - Xoffset_beam_right
+//========= by ROOT version6.18/04
+   
+   TH1F *xoffset_dif__1 = new TH1F("xoffset_dif__1","Xoffset_beam_left - Xoffset_beam_right",50,-5,5);
+   xoffset_dif__1->SetBinContent(10,1);
+   xoffset_dif__1->SetBinContent(11,1);
+   xoffset_dif__1->SetBinContent(15,2);
+   xoffset_dif__1->SetBinContent(17,6);
+   xoffset_dif__1->SetBinContent(18,5);
+   xoffset_dif__1->SetBinContent(19,5);
+   xoffset_dif__1->SetBinContent(20,37);
+   xoffset_dif__1->SetBinContent(21,48);
+   xoffset_dif__1->SetBinContent(22,86);
+   xoffset_dif__1->SetBinContent(23,115);
+   xoffset_dif__1->SetBinContent(24,164);
+   xoffset_dif__1->SetBinContent(25,94);
+   xoffset_dif__1->SetBinContent(26,121);
+   xoffset_dif__1->SetBinContent(27,82);
+   xoffset_dif__1->SetBinContent(28,21);
+   xoffset_dif__1->SetBinContent(29,33);
+   xoffset_dif__1->SetBinContent(30,15);
+   xoffset_dif__1->SetBinContent(31,16);
+   xoffset_dif__1->SetBinContent(32,1);
+   xoffset_dif__1->SetBinContent(33,4);
+   xoffset_dif__1->SetBinContent(34,3);
+   xoffset_dif__1->SetBinContent(35,2);
+   xoffset_dif__1->SetBinContent(36,8);
+   xoffset_dif__1->SetEntries(870);
+
+   Int_t ci;      // for color index setting
+   TColor *color; // for color definition with alpha
+   ci = TColor::GetColor("#000099");
+   xoffset_dif__1->SetLineColor(ci);
+   xoffset_dif__1->GetXaxis()->SetTitle(" difference (cm)");
+   xoffset_dif__1->GetXaxis()->SetLabelFont(42);
+   xoffset_dif__1->GetXaxis()->SetLabelSize(0.035);
+   xoffset_dif__1->GetXaxis()->SetTitleSize(0.035);
+   xoffset_dif__1->GetXaxis()->SetTitleOffset(1.4);
+   xoffset_dif__1->GetXaxis()->SetTitleFont(42);
+   xoffset_dif__1->GetYaxis()->SetTitle(" counts");
+   xoffset_dif__1->GetYaxis()->SetLabelFont(42);
+   xoffset_dif__1->GetYaxis()->SetLabelSize(0.035);
+   xoffset_dif__1->GetYaxis()->SetTitleSize(0.035);
+   xoffset_dif__1->GetYaxis()->SetTitleFont(42);
+   xoffset_dif__1->GetZaxis()->SetLabelFont(42);
+   xoffset_dif__1->GetZaxis()->SetLabelSize(0.035);
+   xoffset_dif__1->GetZaxis()->SetTitleSize(0.035);
+   xoffset_dif__1->GetZaxis()->SetTitleOffset(1);
+   xoffset_dif__1->GetZaxis()->SetTitleFont(42);
+   xoffset_dif__1->Draw("");
+}

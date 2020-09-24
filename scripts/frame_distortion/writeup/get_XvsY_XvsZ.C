@@ -23,16 +23,16 @@ TCanvas* getp1(TFile *f)
     h_neg->SetLineColor(kBlue);
     h_neg->SetLineWidth(2);
     h_neg->GetYaxis()->SetRangeUser(-5,5);
-
+/*
     h_avg->Draw("SAME");
     h_avg->SetLineColor(kBlack);
     h_avg->SetLineWidth(2);
     h_avg->GetYaxis()->SetRangeUser(-5,5);
-
+*/
     auto *l = new TLegend(0.1,0.7,0.3,0.9);
     l->AddEntry(h,"beam left");
     l->AddEntry(h_neg, "beam right");
-    l->AddEntry(h_avg, "average");
+  //  l->AddEntry(h_avg, "average");
     l->Draw("SAME");
     return c;
 }
@@ -58,16 +58,16 @@ TCanvas* getp2(TFile *f)
     h_neg->SetLineColor(kBlue);
     h_neg->SetLineWidth(2);
     h_neg->GetYaxis()->SetRangeUser(-5,5);
-
+/*
     h_avg->Draw("SAME");
     h_avg->SetLineColor(kBlack);
     h_avg->SetLineWidth(2);
     h_avg->GetYaxis()->SetRangeUser(-5,5);
-
+*/
     auto *l = new TLegend(0.1,0.7,0.3,0.9);
     l->AddEntry(h,"beam left");
     l->AddEntry(h_neg, "beam right");
-    l->AddEntry(h_avg, "average");
+    //l->AddEntry(h_avg, "average");
     l->Draw("SAME");
 
     return c;
